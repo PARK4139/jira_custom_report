@@ -53,7 +53,7 @@ function translateReport(){
  document.querySelectorAll('.legend span').forEach((node,i)=>node.textContent=t(i?'resolved':'created'));
  document.querySelector('svg').setAttribute('aria-label',t('title'));
  document.querySelectorAll('svg title[data-cumulative-field]').forEach(node=>node.textContent=node.dataset.periodStart+' / '+node.dataset.periodEnd+' '+t('cumulative')+' '+t(node.dataset.cumulativeField)+': '+Number(node.dataset.cumulativeValue).toLocaleString(locale));
- byId('report-title').textContent=t('heading',{year:loadedFilters?loadedFilters.year:config.currentYear,period:activePeriod});document.title=byId('report-title').textContent;
+ byId('report-title').textContent=t('heading',{year:loadedFilters?loadedFilters.year:config.currentYear,period:/^q[1-4]$/.test(activePeriod)?(locale==='ko'?activePeriod[1]+'분기':activePeriod.toUpperCase()):activePeriod});document.title=byId('report-title').textContent;
  byId('period-select').value=activePeriod;
  byId('report-panel').setAttribute('aria-labelledby','period-heading');
  setStatus(statusKey,statusValues,statusError);colorChart();

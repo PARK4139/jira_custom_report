@@ -31,7 +31,7 @@ The old export CLI options (`--year`, `--periods`, `--configure`, `--output-dir`
 
 ## Reporting periods
 
-Every query loads **1week / 2week / monthly / yearly** results for the selected year. Use the period dropdown to switch the chart, Created/Resolved totals, date-range table, and executed JQL. **Save CSV** writes the loaded results for all four periods into `outputs/`.
+Every query loads **1week / 2week / monthly / yearly** results for the selected year, plus the four quarters **q1 / q2 / q3 / q4** (1분기-4분기). A quarter is shown in 1-week buckets (13-14 per quarter, the last one ends on the quarter's last day) and, like every other period, is cumulative from January 1: its chart starts from the Created/Resolved counts of the quarters before it, and the totals and the Resolved / Created ratio are the cumulative values the chart ends on. The table lists only the quarter's own weekly counts. Use the period dropdown to switch the chart, Created/Resolved totals, date-range table, and executed JQL. **Save CSV** writes the loaded results for every period into `outputs/`.
 
 Graphs use **carried-forward cumulative totals**: each point adds that period's Created/Resolved counts to the preceding periods within the selected calendar year. For example, period counts `2, 0, 5` produce chart values `2, 2, 7`. Created and Resolved accumulate independently for each project, beginning at zero on January 1. Switching periods or redrawing does not accumulate the same counts again. Saved HTML and JPG use these cumulative curves. Tables, CSV, and the executed JQL retain the original per-period counts; the final cumulative point equals the year's total.
 

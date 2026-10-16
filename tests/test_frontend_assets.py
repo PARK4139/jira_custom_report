@@ -74,9 +74,9 @@ assert 'Issue Trend' in render_html('DEMO', 2026, [], [])
                                     capture_output=True, text=True, encoding='utf-8')
             self.assertEqual(result.returncode, 0, result.stderr)
             report = Path(directory) / 'report.html'
-            from jira_periods import PERIODS, period_ranges
+            from jira_periods import BASE_PERIODS, period_ranges
             periods = {period: [dict(row, created=2, resolved=1) for row in period_ranges(2026, period)]
-                       for period in PERIODS}
+                       for period in BASE_PERIODS}
             report.write_text(render_html('DEMO', 2026, [], ['sample'], periods), encoding='utf-8')
             result = subprocess.run(['node', str(ROOT / 'tests/check_report_tabs.cjs'), str(report)],
                                     capture_output=True, text=True, encoding='utf-8')

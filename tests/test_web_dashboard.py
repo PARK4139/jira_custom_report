@@ -13,7 +13,7 @@ from pathlib import Path
 import tempfile
 
 from jira_credentials import Credentials
-from jira_periods import PERIODS, period_ranges
+from jira_periods import BASE_PERIODS, PERIODS, QUARTERS, period_ranges
 import jira_issue_monthly as report
 import jira_dashboard_server as web
 import jira_dashboard_service as service
@@ -194,9 +194,17 @@ class DashboardTests(unittest.TestCase):
                 self.assertEqual(set(result['datasets']), set(PERIODS))
                 for period, rows in result['datasets'].items():
                     self.assertEqual(len(rows), len(period_ranges(year, period)))
-                    self.assertEqual((rows[0]['created'], rows[0]['resolved']), ((year-2020)*2, (year-2020)*2))
+                    total = (year - 2020) * 2
+                    if period in QUARTERS and period != 'q1':
+                        self.assertEqual((rows[0]['created'], rows[0]['resolved']), (0, 0), 'later quarters start empty')
+                        self.assertEqual(rows[0]['carry'], {'created': total, 'resolved': total}, 'January 1 counts carry into the quarter')
+                    else:
+                        self.assertEqual((rows[0]['created'], rows[0]['resolved']), (total, total))
+                    if period == 'q1':
+                        self.assertEqual(rows[0]['carry'], {'created': 0, 'resolved': 0})
                     self.assertTrue(all(r['created'] == r['resolved'] == 0 for r in rows[1:]))
-                    self.assertIn(f'created >= "{year}-01-01"', rows[0]['queries']['created'])
+                    self.assertIn(f'created >= "{rows[0]["start"]}"', rows[0]['queries']['created'])
+                    self.assertEqual(rows[0]['start'], f'{year}-01-01' if period not in QUARTERS else period_ranges(year, period)[0]['start'])
                     self.assertIn('project = "DEMO"', rows[0]['queries']['created'])
                     self.assertIn('project = "OTHER"', rows[0]['queries']['created'])
                 self.assertNotIn(self.credentials.token, body)
@@ -225,7 +233,12 @@ class DashboardTests(unittest.TestCase):
         data = json.loads(body)
         first, second = data['projectReports']
         self.assertEqual((first['name'], second['name']), ('Quality team', 'Platform team'))
-        for period in PERIODS:
+        for quarter in QUARTERS[1:]:
+            self.assertEqual(first['datasets'][quarter][0]['carry']['created'], 2)
+            self.assertEqual(second['datasets'][quarter][0]['carry']['created'], 7)
+            self.assertEqual(data['datasets'][quarter][0]['carry']['created'], 9, 'combined carry adds the projects')
+            self.assertEqual(first['datasets'][quarter][0]['carry']['created'], 2, 'adding projects never changes another project carry')
+        for period in BASE_PERIODS + ('q1',):
             self.assertEqual(first['datasets'][period][0]['created'], 2)
             self.assertEqual(second['datasets'][period][0]['created'], 7)
             self.assertEqual(data['datasets'][period][0]['created'], 9)

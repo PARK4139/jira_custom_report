@@ -10,8 +10,31 @@ from unittest.mock import patch
 import jira_audit
 import jira_issue_monthly as report
 from jira_credentials import Credentials
-from jira_periods import PERIODS, period_ranges
+from datetime import date, timedelta
+from jira_periods import BASE_PERIODS, PERIODS, QUARTERS, period_ranges
 from jira_settings import Settings
+
+
+class QuarterRangeTests(unittest.TestCase):
+    def test_each_quarter_is_covered_by_weekly_buckets_without_gaps_or_overlaps(self):
+        for year in (2024, 2026):
+            for number, period in enumerate(QUARTERS, start=1):
+                with self.subTest(year=year, period=period):
+                    rows = period_ranges(year, period)
+                    quarter_start = date(year, 3 * number - 2, 1)
+                    quarter_end = date(year + 1, 1, 1) if number == 4 else date(year, 3 * number + 1, 1)
+                    self.assertEqual(rows[0]['start'], str(quarter_start))
+                    self.assertEqual(rows[-1]['end'], str(quarter_end))
+                    self.assertTrue(all(a['end'] == b['start'] for a, b in zip(rows, rows[1:])))
+                    self.assertTrue(all(date.fromisoformat(r['end']) - date.fromisoformat(r['start']) <= timedelta(days=7) for r in rows))
+                    self.assertEqual(len(rows), -(-(quarter_end - quarter_start).days // 7))
+        self.assertEqual([len(period_ranges(2026, q)) for q in QUARTERS], [13, 13, 14, 14])
+        self.assertEqual(period_ranges(2026, 'q3')[0]['label'], '07/01')
+
+    def test_unknown_periods_are_rejected(self):
+        for period in ('q0', 'q5', 'quarterly', 'Q1', ''):
+            with self.subTest(period=period), self.assertRaises(ValueError):
+                period_ranges(2026, period)
 
 
 class PeriodReportTests(unittest.TestCase):
@@ -51,7 +74,7 @@ class PeriodReportTests(unittest.TestCase):
             self.assertTrue(any('AND resolved >= "2026-01-01" AND resolved < "2027-01-01"' in q for q in queries))
             html = (Path(directory) / "DEMO_2026_monthly_issues.html").read_text(encoding="utf-8")
             data = json.loads(html.split("const datasets=", 1)[1].split(";\n", 1)[0])
-            self.assertEqual(set(data), set(PERIODS))
+            self.assertEqual(set(data), set(BASE_PERIODS))
             for period, rows in data.items():
                 self.assertEqual(len(rows), len(period_ranges(2026, period)))
                 self.assertTrue(all((r["created"], r["resolved"]) == (2, 1) for r in rows))

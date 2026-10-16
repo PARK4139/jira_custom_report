@@ -1,11 +1,17 @@
 
 const values=CHART_DATA;
 const datasets=PERIOD_DATA;
-const titles={'1week':'1 week','2week':'2 weeks',monthly:'Monthly',yearly:'Yearly'};
+const titles={'1week':'1 week','2week':'2 weeks',monthly:'Monthly',yearly:'Yearly',q1:'Q1',q2:'Q2',q3:'Q3',q4:'Q4'};
 const byId=id=>document.getElementById(id), ns='http://www.w3.org/2000/svg';
+// Every view is cumulative from January 1: a quarter starts from the counts of the quarters before it (rows[0].carry).
+function carryOf(rows){const carry=rows[0]&&rows[0].carry;return {created:carry?carry.created:0,resolved:carry?carry.resolved:0}}
 function cumulativeRows(rows){
-let created=0,resolved=0;
+const carry=carryOf(rows);let created=carry.created,resolved=carry.resolved;
 return rows.map(row=>({...row,created:created+=row.created,resolved:resolved+=row.resolved}));
+}
+function cumulativeTotals(rows){
+const carry=carryOf(rows);
+return {created:rows.reduce((sum,row)=>sum+row.created,carry.created),resolved:rows.reduce((sum,row)=>sum+row.resolved,carry.resolved)};
 }
 function add(id,tag,attrs,text){const el=document.createElementNS(ns,tag);for(const [k,v] of Object.entries(attrs))el.setAttribute(k,v);if(text!==undefined)el.textContent=text;byId(id).append(el);return el}
 function render(period){
@@ -15,7 +21,7 @@ for(const button of byId('period-tabs').children){const selected=button.dataset.
 byId('report-panel').setAttribute('aria-labelledby','tab-'+period);
 byId('period-heading').textContent=titles[period]+' Cumulative Issue Trend';
 byId('period-note').textContent='Chart: cumulative Created / Resolved from January 1 of the selected year. Table: counts for each period. '+rows.length+' periods / '+(rows.length*2)+' JQL queries. Date ranges include the start and exclude the end.';
-const created=rows.reduce((a,r)=>a+r.created,0),resolved=rows.reduce((a,r)=>a+r.resolved,0);
+const {created,resolved}=cumulativeTotals(rows);
 byId('summary').replaceChildren();
 for(const [label,value] of [['Resolved / Created',created?(resolved/created*100).toFixed(1)+'%':'—']]){const item=document.createElement('span');item.textContent=label;const strong=document.createElement('strong');strong.textContent=value;item.append(strong);byId('summary').append(item)}
 for(const id of ['grid','series','labels'])byId(id).replaceChildren();

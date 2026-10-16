@@ -13,7 +13,7 @@ async function exportJpg(){
   function text(value){ctx.font=font;let line='';for(const char of value){if(ctx.measureText(line+char).width>1670){lines.push({text:line,font});line=''}line+=char}lines.push({text:line,font})}
   text(byId('report-title').textContent);font=bodyFont;
   text(messages[locale].periods[activePeriod]);text(t('projects')+': '+loadedFilters.projects.join(', '));text(t('reporters')+': '+loadedFilters.reporters.join(', '));
-  const rows=datasets[activePeriod],created=rows.reduce((sum,row)=>sum+row.created,0),resolved=rows.reduce((sum,row)=>sum+row.resolved,0);
+  const rows=datasets[activePeriod],{created,resolved}=cumulativeTotals(rows);
   text(t('created')+': '+created+'    '+t('resolved')+': '+resolved+'    '+t('ratio')+': '+(created?(resolved/created*100).toFixed(1)+'%':'—'));
   text(t('note',{buckets:rows.length,count:rows.length*2}));
   const chartY=62+lines.length*42+24;

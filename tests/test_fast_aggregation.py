@@ -172,6 +172,9 @@ class FastAggregationTests(unittest.TestCase):
                     new = fast['projectReports'][index]['datasets'][period]
                     self.assertEqual([(row['created'], row['resolved']) for row in old],
                                      [(row['created'], row['resolved']) for row in new], (project, period))
+                    self.assertEqual(old[0].get('carry'), new[0].get('carry'), (project, period, 'carry-over from January 1'))
+                    if period in ('q2', 'q3', 'q4'):
+                        self.assertGreater(new[0]['carry']['created'], 0, 'the synthetic data has issues before this quarter')
         for period in PERIODS:
             combined = [(row['created'], row['resolved']) for row in fast['datasets'][period]]
             separate = [tuple(a[f] + b[f] for f in ('created', 'resolved'))
