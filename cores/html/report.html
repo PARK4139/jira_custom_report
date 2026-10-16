@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PROJECT_NAME | YEAR Jira Issue Report</title>
+<style>{{REPORT_STYLE}}</style></head><body>
+<div class="eyebrow">SQA · ISSUE MANAGEMENT</div>
+<h1>PROJECT_NAME — YEAR Issue Trend</h1>
+<div class="sub">Created / Resolved by reporting period. Reporters: REPORTER_NAMES</div>
+<nav class="tabs" role="tablist" aria-label="Reporting period" id="period-tabs"></nav>
+<section id="report-panel" role="tabpanel" tabindex="0">
+<h2 id="period-heading">Monthly Issue Trend</h2>
+<p id="period-note"></p><div id="summary"></div>
+<div class="chart-wrap"><div class="legend"><span style="--dot:#ff6876">Created</span><span style="--dot:#5bd4a4">Resolved</span></div>
+<svg viewBox="0 0 1060 410" role="img" aria-label="기간별 Created 및 Resolved 이슈 추이">
+<g id="grid"></g><g id="series"></g><g id="labels"></g></svg></div>
+<div class="table-scroll"><table><thead><tr><th scope="col">Period [start, end)</th><th scope="col">Created</th><th scope="col">Resolved</th><th scope="col">JQL</th></tr></thead><tbody id="period-rows"></tbody></table></div>
+</section>
+<noscript>Enable JavaScript to switch reporting tabs and view the charts. CSV exports contain all queried counts.</noscript>
+<footer>YEAR calendar year. 7/14-day periods begin January 1; the final period ends January 1 of the next year.
+Dates use the Jira account timezone. Zero results are included. Each period and date field is queried separately.
+Resolved issues may have been created before this year. The ratio is not a cohort resolution rate.<br>Generated: GENERATION_TIME | Jira Server/Data Center REST API</footer>
+<script>{{REPORT_SCRIPT}}</script></body></html>

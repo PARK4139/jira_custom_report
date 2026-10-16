@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jira-custom-report"
+version = "0.1.0"
+description = "Local monthly Jira issue reports with explicit credential storage"
+requires-python = ">=3.11"
+dependencies = [
+    "keyring>=25.6,<26; sys_platform == 'win32'",
+    "tzdata>=2025.2; sys_platform == 'win32'",
+    "tomli-w>=1.2,<2",
+]
+
+[project.scripts]
+jira-report = "launch_report:launch"
+
+[tool.uv]
+package = true
+required-version = ">=0.8"
+
+[tool.setuptools]
+package-dir = {"" = "cores/python", "cores" = "cores", "cores.html" = "cores/html"}
+py-modules = ["jira_issue_monthly", "jira_web", "jira_dashboard_lifecycle", "jira_dashboard_cli", "jira_dashboard_server", "jira_dashboard_service", "jira_dashboard_ui", "jira_report_view", "jira_projects", "jira_reporters", "jira_year_search", "jira_periods", "jira_credentials", "jira_paths", "jira_audit", "jira_jql_log", "jira_settings", "launch_report"]
+packages = ["cores", "cores.html"]
+
+[tool.setuptools.package-data]
+"cores.html" = ["*.html", "*.css", "*.js"]

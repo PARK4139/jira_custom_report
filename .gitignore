@@ -1,0 +1,50 @@
+# Credentials and local configuration (including variants/backups)
+.env
+.env.*
+*.env
+*.env.*
+!.env.example
+secrets/
+credentials/
+*.pem
+*.key
+
+# Reports contain internal project/reporter information
+/outputs/*
+!/outputs/.gitkeep
+jira_reports/
+*_monthly_issues.csv
+*_monthly_issues.html
+*_1week_issues.csv
+*_2week_issues.csv
+*_yearly_issues.csv
+
+# Native JQL log contains internal project/reporter identifiers
+logs/
+
+# Local tools and Python environments
+.local/
+*.egg-info/
+build/
+dist/
+graphify-out/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.idea/
+.vscode/
+
+# Bundled uv binary (copy uv.exe here; 40 MB, not versioned)
+/tools/uv.exe
+
+# Internal issue records (agent session IDs, tooling paths) and generated evidence stay local
+issues/
+evidence/
+*.jsonl
+*.jpg
+*.jpeg
+*.png
+*.csv
+!tests/**/*.csv

@@ -1,0 +1,10 @@
+# Example only. Replace these placeholders locally; never add a token/password.
+[jira]
+site_url = "https://jira.example.com/jira"
+# Legacy field name: email stores the Jira user ID.
+email = "myuser"
+
+[report]
+projects = ["DEMO"]
+reporters = ["reporter-user"]
+# Year is selected in the web dashboard.
