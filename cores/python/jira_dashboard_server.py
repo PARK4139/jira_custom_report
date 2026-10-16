@@ -10,6 +10,7 @@ import sys
 import threading
 
 from jira_autologin import NoAutoLogin
+from cores.html import asset_revision, read_asset
 from jira_credentials import Credentials
 from jira_dashboard_service import build_report
 from jira_dashboard_ui import dashboard_html
@@ -37,12 +38,13 @@ def reveal_output(path):
 class DashboardServer(ThreadingHTTPServer):
     daemon_threads = True
 
-    def __init__(self, credentials: Credentials, projects: list[str], reporters: list[str], port: int = 0, *, autologin=None):
+    def __init__(self, credentials: Credentials, projects: list[str], reporters: list[str], port: int = 0, *, autologin=None, hot_reload=False):
         super().__init__(("127.0.0.1", port), DashboardHandler)
         self.credentials = credentials
         self.autologin = autologin if autologin is not None else NoAutoLogin()
         self.projects, self.reporters = projects, reporters
         self.project_names = {}
+        self.hot_reload = hot_reload
         self.session = secrets.token_urlsafe(32)
         self.query_lock = threading.Lock()
         self.current_year = datetime.now(TZ).year
@@ -75,9 +77,14 @@ class DashboardHandler(BaseHTTPRequestHandler):
         if not self.trusted_host():
             self.respond(403, {'error': 'Untrusted host.'})
         elif self.path == '/':
+            if self.server.hot_reload:
+                read_asset.cache_clear()
             self.respond(200, dashboard_html(self.server.session, ' '.join(self.server.projects),
                                             self.server.reporters, self.server.current_year, load_inputs(),
-                                             {'available': self.server.autologin.available, 'enabled': self.server.autologin.enabled()}), 'text/html')
+                                             {'available': self.server.autologin.available, 'enabled': self.server.autologin.enabled()},
+                                             hot_reload=self.server.hot_reload), 'text/html')
+        elif self.path == '/__dev/revision' and self.server.hot_reload:
+            self.respond(200, {'revision': asset_revision(), 'session': self.server.session})
         else:
             self.respond(404, {'error': 'Not found.'})
 
@@ -187,10 +194,15 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 else:
                     self.respond(200, {'reporters': reporters})
                 return
-            if not isinstance(payload, dict) or set(payload) != {'year', 'projects', 'reporters'}:
+            if (not isinstance(payload, dict) or not {'year', 'projects', 'reporters'} <= set(payload)
+                    or set(payload) - {'year', 'projects', 'reporters', 'period', 'includeUnresolved'}):
                 raise ValueError
             year = payload['year']
             if type(year) is not int or not 1970 <= year <= self.server.current_year + 1:
+                raise ValueError
+            period = payload.get('period', 'monthly')
+            include_unresolved = payload.get('includeUnresolved', False)
+            if period not in ('daily', '1week', 'monthly', 'yearly', 'quarterly') or type(include_unresolved) is not bool:
                 raise ValueError
             settings = Settings(self.server.credentials.url, self.server.credentials.email,
                                 payload['projects'], payload['reporters'], year,
@@ -204,7 +216,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.respond(409, {'error': 'Another query is running. Try again when it finishes.'})
             return
         try:
-            status, response = 200, build_report(settings, self.server.credentials, self.server.project_names)
+            status, response = 200, build_report(settings, self.server.credentials, self.server.project_names,
+                                                 period, include_unresolved)
         except RuntimeError as error:
             status, response = 502, {'error': str(error)}
         except Exception:

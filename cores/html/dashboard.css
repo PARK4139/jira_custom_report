@@ -80,7 +80,7 @@ body{max-width:none;margin:0;padding:0;background:var(--page);color:var(--ink);f
 @media(prefers-reduced-motion:reduce){.project-report svg path.series-line,.project-report svg .series-dot{animation:none;transition:none}}
 .project-report table{margin-top:12px}
 .chart-wrap{background:var(--surface);border:1px solid var(--line);border-radius:3px}
-.red{color:var(--created)}.green{color:var(--resolved)}
+.red{color:var(--created)}.green{color:var(--resolved)}.blue{color:var(--focus)}
 td,th{border-color:var(--grid)}th{color:var(--muted)}summary{color:var(--accent);cursor:pointer}
 .legend,.sub,footer{color:var(--muted)}
 footer{max-width:1600px;margin:0 auto;padding:0 24px 24px;font-size:12px}

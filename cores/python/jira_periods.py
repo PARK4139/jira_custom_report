@@ -39,3 +39,14 @@ def period_jql(project: str, reporters: list[str], start: str, end: str, date_fi
     names = ", ".join(json.dumps(name, ensure_ascii=False) for name in reporters)
     return (f"project = {json.dumps(project, ensure_ascii=False)} AND reporter IN ({names}) "
             f'AND {date_field} >= "{start}" AND {date_field} < "{end}"')
+
+
+def unresolved_jql(project: str, reporters: list[str], start: str, end: str) -> str:
+    """Issues whose resolution field was empty on the final calendar day of a bucket."""
+    from datetime import date, timedelta
+    if date.fromisoformat(start) >= date.fromisoformat(end):
+        raise ValueError("JQL end must be after start.")
+    names = ", ".join(json.dumps(name, ensure_ascii=False) for name in reporters)
+    as_of = date.fromisoformat(end) - timedelta(days=1)
+    return (f"project = {json.dumps(project, ensure_ascii=False)} AND reporter IN ({names}) "
+            f'AND created < "{end}" AND resolution WAS EMPTY ON "{as_of}"')

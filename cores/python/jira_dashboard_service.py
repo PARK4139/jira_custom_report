@@ -2,10 +2,10 @@
 from jira_credentials import Credentials
 from jira_periods import PERIODS, period_jql
 from jira_settings import Settings
-from jira_year_search import count_buckets, fetch_year_issues
+from jira_year_search import count_buckets, count_unresolved_at_period_ends, fetch_year_issues
 
 
-def build_report(settings: Settings, credentials: Credentials, project_names: dict) -> dict:
+def build_report(settings: Settings, credentials: Credentials, project_names: dict, selected_period: str = 'monthly', include_unresolved: bool = False) -> dict:
     year = settings.year
     projects = list(dict.fromkeys(settings.projects))
     records, request_count = fetch_year_issues(projects, year, settings.reporters, credentials)
@@ -30,5 +30,13 @@ def build_report(settings: Settings, credentials: Credentials, project_names: di
         for row in rows:
             row['queries'] = {field: '\n\n'.join(queries) for field, queries in row['queries'].items()}
         datasets[period] = rows
+    unresolved_requests = 0
+    if include_unresolved:
+        unresolved, unresolved_requests = count_unresolved_at_period_ends(
+            projects, year, settings.reporters, credentials, selected_period)
+        for project in projects:
+            project_reports[project]['datasets'][selected_period] = [
+                dict(row, unresolved=snapshot['unresolved'], queries=dict(row['queries'], unresolved=snapshot['queries']['unresolved']))
+                for row, snapshot in zip(project_reports[project]['datasets'][selected_period], unresolved[project])]
     return {'year': year, 'datasets': datasets, 'projectReports': list(project_reports.values()),
-            'queryCount': request_count}
+            'queryCount': request_count + unresolved_requests, 'unresolvedPeriod': selected_period}

@@ -12,7 +12,7 @@ from jira_audit import record_event
 from jira_credentials import Credentials, validate_url
 from jira_issue_monthly import TZ, request_json
 from jira_jql_log import log_jql
-from jira_periods import period_ranges
+from jira_periods import period_ranges, unresolved_jql
 
 PAGE_SIZE = 1000
 MAX_WORKERS = 8
@@ -100,6 +100,27 @@ def fetch_year_issues(projects: list[str], year: int, reporters: list[str],
         raise RuntimeError("Jira results changed during the query. Retry the report.")
     record_event(event="year_search", outcome="complete", count=total)
     return list(records.values()), len(pages)
+
+
+def count_unresolved_at_period_ends(projects: list[str], year: int, reporters: list[str],
+                                    credentials: Credentials, period: str) -> tuple[dict[str, list[dict]], int]:
+    """Query Jira's resolution history for each project's unresolved count at every bucket end."""
+    buckets = period_ranges(year, period)
+    jobs = [(project, bucket, unresolved_jql(project, reporters, bucket['start'], bucket['end']))
+            for project in projects for bucket in buckets]
+    def count(job):
+        project, bucket, jql = job
+        result = _search_page(credentials, jql, 0, 1)
+        return project, bucket['start'], result['total'], jql
+    with ThreadPoolExecutor(max_workers=min(MAX_WORKERS, len(jobs))) as pool:
+        results = list(pool.map(count, jobs))
+    grouped = {project: [] for project in projects}
+    counts = {(project, start): (total, jql) for project, start, total, jql in results}
+    for project in projects:
+        for bucket in buckets:
+            total, jql = counts[(project, bucket['start'])]
+            grouped[project].append(dict(bucket, unresolved=total, queries={'unresolved': jql}))
+    return grouped, len(jobs)
 
 
 def count_buckets(records, year: int, period: str) -> list[dict]:

@@ -39,6 +39,7 @@ def main():
     parser.add_argument('--profile', default='default', help='Read existing nonsecret defaults')
     parser.add_argument('--port', type=int, default=0, help='Local port (default: automatically allocated)')
     parser.add_argument('--no-open', action='store_true', help='Print the dashboard URL without opening a browser')
+    parser.add_argument('--hot-reload', action='store_true', help='Reload the browser when dashboard HTML, CSS, or JavaScript assets change')
     parser.add_argument('--no-auto-login', action='store_true', help='Ask for the password even if Auto login is on (it stays on)')
     args = parser.parse_args()
     if not 0 <= args.port <= 65535:
@@ -55,7 +56,7 @@ def main():
             print(HTTP_WARNING[saved_language()], file=sys.stderr)
     else:
         credentials = prompt_credentials(url, user_id, allow_insecure_http=args.allow_insecure_http)
-    with restarting_dashboard(lambda *arguments: DashboardServer(*arguments, autologin=autologin), credentials, args.project or (saved.projects if saved else []),
+    with restarting_dashboard(lambda *arguments: DashboardServer(*arguments, autologin=autologin, hot_reload=args.hot_reload), credentials, args.project or (saved.projects if saved else []),
                          args.reporter or (saved.reporters if saved else []), args.port) as server:
         print(f'Dashboard: {server.origin}/')
         print('Select the year in your browser. Keep this terminal open; press Ctrl+C to stop.')

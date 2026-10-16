@@ -173,12 +173,13 @@ def main():
     parser = argparse.ArgumentParser(description="Jira dashboard demo with dummy data (no Jira connection needed)")
     parser.add_argument("--port", type=int, default=0, help="Local port (default: automatically allocated)")
     parser.add_argument("--no-open", action="store_true", help="Print the dashboard URL without opening a browser")
+    parser.add_argument("--hot-reload", action="store_true", help="Reload the browser when dashboard HTML, CSS, or JavaScript assets change")
     args = parser.parse_args()
     if not 0 <= args.port <= 65535:
         parser.error("port must be between 0 and 65535")
     with demo_environment():
         credentials = Credentials("https://demo.invalid", "demo", "demo-not-a-real-password")
-        with jira_dashboard_server.DashboardServer(credentials, DEFAULT_PROJECTS, DEFAULT_REPORTERS, args.port, autologin=MemoryAutoLogin()) as server:
+        with jira_dashboard_server.DashboardServer(credentials, DEFAULT_PROJECTS, DEFAULT_REPORTERS, args.port, autologin=MemoryAutoLogin(), hot_reload=args.hot_reload) as server:
             print(f"Dashboard (DEMO): {server.origin}/", flush=True)
             print("DEMO MODE: dummy data only; no Jira connection. Keep this terminal open; press Ctrl+C to stop.", flush=True)
             if not args.no_open and not open_browser(server.origin + "/"):

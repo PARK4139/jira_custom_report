@@ -13,7 +13,7 @@ const savedPeriod=preference('period','monthly');
 let activePeriod=['daily','1week','monthly','yearly','quarterly'].includes(savedPeriod)?savedPeriod:'monthly',hasResults=false;
 // Output mode: the running total from January 1 (cumulative) or each period's own counts (periodic).
 const savedMode=preference('mode','cumulative');
-let calcMode=['cumulative','periodic'].includes(savedMode)?savedMode:'cumulative';
+let calcMode=['cumulative','periodic','unresolved'].includes(savedMode)?savedMode:'cumulative';
 try{if(savedMode!==calcMode&&localStorage.getItem('jira-mode'))localStorage.setItem('jira-mode',calcMode)}catch{}
 // A saved period that no longer exists (for example 2week) falls back to monthly and is overwritten.
 try{if(savedPeriod!==activePeriod&&localStorage.getItem('jira-period'))localStorage.setItem('jira-period',activePeriod)}catch{}
@@ -74,7 +74,7 @@ queryRunning=true;
 remember('year',String(year));remember('projects',JSON.stringify(projects));remember('reporters',JSON.stringify(reportersField.values));remember('period',activePeriod);remember('mode',calcMode);
 status.className='';queryStatus('loading',{year});invalidateReport();
 try{
-const response=await fetch('/api/report',{method:'POST',headers:{'Content-Type':'application/json','X-Session-Token':config.session},body:JSON.stringify({year,projects,reporters})});
+const response=await fetch('/api/report',{method:'POST',headers:{'Content-Type':'application/json','X-Session-Token':config.session},body:JSON.stringify({year,projects,reporters,period:activePeriod,includeUnresolved:calcMode==='unresolved'})});
 const result=await response.json();if(generation!==queryGeneration)return;if(!response.ok)throw new Error(result.error||'Query failed.');
 datasets=result.datasets;loadedProjectReports=result.projectReports||[];
 if(typeof loadedFilters!=='undefined')loadedFilters={year,projects:displayNames,reporters:reportersField.values.map(chip=>chip.label)};
@@ -132,8 +132,8 @@ reportersField.set(savedReporters().length?savedReporters():config.reporters.map
 for(const chip of reportersField.values)if(chip.label===chip.value)searchJiraUsers(chip.value).then(users=>{const user=users.find(item=>item.value.toLowerCase()===chip.value.toLowerCase());if(user){reportersField.relabel(user.value,user.label);remember('reporters',JSON.stringify(reportersField.values))}}).catch(()=>{});
 byId('period-select').value=activePeriod;
 byId('calc-mode').value=calcMode;
-byId('calc-mode').addEventListener('change',()=>{calcMode=byId('calc-mode').value==='periodic'?'periodic':'cumulative';remember('mode',calcMode);if(hasResults)render(activePeriod)});
-byId('period-select').addEventListener('change',()=>{activePeriod=byId('period-select').value;remember('period',activePeriod);if(hasResults)render(activePeriod);else if(!queryRunning)scheduleReport()});
+byId('calc-mode').addEventListener('change',()=>{calcMode=['periodic','unresolved'].includes(byId('calc-mode').value)?byId('calc-mode').value:'cumulative';remember('mode',calcMode);if(hasResults&&calcMode!=='unresolved')render(activePeriod);else scheduleReport()});
+byId('period-select').addEventListener('change',()=>{activePeriod=byId('period-select').value;remember('period',activePeriod);if(hasResults&&calcMode!=='unresolved')render(activePeriod);else scheduleReport()});
 byId('download-csv').addEventListener('click',async()=>{
 const rows=[['project_key','project_name','period','start','end','created','resolved']];
 for(const project of loadedProjectReports)for(const [period,values] of Object.entries(project.datasets))for(const row of values)rows.push([project.key,project.name,period,row.start,row.end,row.created,row.resolved]);
