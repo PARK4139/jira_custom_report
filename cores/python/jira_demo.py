@@ -114,6 +114,24 @@ def fetch_year_issues(projects, year, reporters, credentials):
     return records, 1
 
 
+def count_unresolved_at_period_ends(projects, year, reporters, credentials, period):
+    """Build deterministic demo snapshots from each synthetic issue's create/resolve dates."""
+    from jira_periods import period_ranges
+    wanted = {name.casefold() for name in reporters}
+    records = {key: [(created, resolved) for reporter, created, resolved in _issues(
+        key, year, next((scale for project, _, scale in PROJECTS if project == key), 300))
+        if reporter.casefold() in wanted] for key in projects}
+    grouped = {key: [] for key in projects}
+    for key in projects:
+        for bucket in period_ranges(year, period):
+            as_of = date.fromisoformat(bucket['end'])
+            count = sum(created < as_of and (resolved is None or resolved >= as_of)
+                        for created, resolved in records[key])
+            grouped[key].append(dict(bucket, unresolved=count,
+                                     queries={'unresolved': 'DEMO: synthetic resolution history at ' + str(as_of)}))
+    return grouped, len(projects) * len(period_ranges(year, period))
+
+
 def fetch_projects(credentials):
     return sorted(({"key": key, "name": name} for key, name, _ in PROJECTS), key=lambda project: (project["name"].casefold(), project["key"]))
 
@@ -138,6 +156,7 @@ def demo_environment(inputs_file=None):
     """Swap the Jira calls for dummy data and the saved-inputs file for a demo-only file; restore everything on exit."""
     replacements = [
         (jira_dashboard_service, "fetch_year_issues", fetch_year_issues),
+        (jira_dashboard_service, "count_unresolved_at_period_ends", count_unresolved_at_period_ends),
         (jira_dashboard_server, "fetch_projects", fetch_projects),
         (jira_dashboard_server, "fetch_project", fetch_project),
         (jira_dashboard_server, "search_reporters", search_reporters),

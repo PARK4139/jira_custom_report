@@ -1,57 +1,47 @@
 # Jira Custom Report
 
-A local web dashboard for exploring Jira Server and Data Center issue trends by project, reporter, and reporting period.
+Local dashboard for Jira Server and Data Center issue trends.
 
-For setup screenshots and a guided walkthrough, see the [Quick Start Guide](QUICK_START.md).
+See the [Quick Start Guide](QUICK_START.md) for screenshots.
 
 <!-- showreel:start -->
 ![10-second dashboard showreel](docs/showreel.gif)
 
-The terminal sequence is reconstructed from the actual `run.cmd` output; it is not a terminal recording. The dashboard sequence uses fictional demo data, so all displayed values are invented. To rebuild the GIF, run `node tests/capture_showreel.cjs`, then `uv run --no-project --with pillow python tests/build_showreel.py`.
+Terminal scene is reconstructed from `run.cmd` output. Dashboard scene uses fictional demo data. To rebuild: `node tests/capture_showreel.cjs`, then `uv run --no-project --with pillow python tests/build_showreel.py`.
 <!-- showreel:end -->
 
-## Quick start
+## Start
 
-Requirements: Windows, Git, and [uv](https://docs.astral.sh/uv/). Place `uv.exe` in `tools/` or install uv on `PATH`.
+Requirements: Windows, Git, and [uv](https://docs.astral.sh/uv/). Put `uv.exe` in `tools/` or add it to `PATH`.
 
 ```bat
-uv sync --locked
 run.cmd --url https://jira.example.com/jira --id myuser
 ```
 
-Enter your Jira password at the hidden terminal prompt. The launcher opens the dashboard in your browser. Keep the terminal open while using it; press **Ctrl+C** to stop the server. The dashboard listens only on `127.0.0.1` and chooses an available local port by default.
+Enter the Jira password in the terminal. The dashboard opens in your browser. Leave the terminal open. Press **Ctrl+C** to stop.
 
-You can omit `--url` and `--id` to use a saved profile or enter them when prompted. Use `--profile work` to select another profile, `--port 8765` to choose a port, or `--no-open` to print the dashboard URL without opening a browser. Optional initial filters can be supplied with `--project` and `--reporter`:
+Run without Jira:
 
 ```bat
-run.cmd --url https://jira.example.com/jira --id myuser --project DEMO OTHER --reporter user-a user-b
+demo.cmd
 ```
 
-Select the year in the dashboard. The default is the current year; supported years range from 1970 through next year.
+Demo uses fictional data. It needs no credentials and makes no Jira requests. See [Demo](#demo) for options.
 
 ## Dashboard
 
-Project and reporter filters use searchable chips with Jira-backed autocomplete. Click a field or press **Ctrl+Space** to show candidates, type to filter, and press **Tab** to add the highlighted candidate. Use the arrow keys and **Enter** to choose another result. Queries run automatically when the filters are valid; there is no query button.
+- Choose a year, projects, reporters, period, language, and theme.
+- Project and reporter fields have autocomplete. Queries start when filters are valid.
+- See combined totals and one graph per project.
+- The regular report loads issues created or resolved in the selected year, then counts daily, weekly, monthly, quarterly, and yearly totals from that result.
+- Choose **Cumulative** for year-to-date created and resolved lines, or **Non-cumulative** for created and resolved counts in each period.
+- Choose **Unresolved trend** to replay each candidate issue's paginated Jira changelog and count issues with an empty resolution at each period end. This includes issues whose resolution has never changed, avoiding the known omission in `resolution WAS EMPTY ON "date"`. Jira must allow access to issue changelogs. The candidate-search JQL and changelog-replay note appear in each period's data-proof table; request volume depends on the number of candidate issues and changelog pages.
+- Tables and CSV contain created/resolved period counts. CSV does not include unresolved snapshots.
+- Demo mode supplies deterministic synthetic unresolved snapshots and makes no Jira requests.
+- Export CSV or JPG to `outputs/`.
+- Filters and display preferences are saved locally in `.local/inputs.json` and browser storage.
 
-The dashboard displays combined totals and a separate graph and period table for each selected project. Changing the year, projects, or reporters fetches a new report. Switching the reporting period reuses the loaded data. Stale results are hidden while filters change or a request is in progress.
-
-Each report is fetched with one paged Jira search; all reporting periods are counted locally from that result. Supported periods are:
-
-- **Daily:** one bucket per calendar day.
-- **Weekly:** consecutive seven-day buckets beginning January 1.
-- **Monthly:** the twelve calendar months.
-- **Quarterly:** Q1 through Q4, aligned to calendar quarters.
-- **Yearly:** one bucket for the full calendar year.
-
-Charts show cumulative created and resolved totals from January 1. Tables, CSV exports, and displayed JQL retain the per-period counts. Resolved issues may have been created before the selected year, so the resolved-to-created ratio is not a cohort resolution rate.
-
-The language selector supports Korean and English; the theme selector supports light and dark modes. The selected language, theme, period, year, projects, and reporters are saved in browser storage and mirrored to `.local/inputs.json` so they can be restored after a server restart. This file contains filter values only and is ignored by Git.
-
-**Save CSV** exports the loaded report for all periods. **Export JPG** saves the currently displayed summary and project charts as an image. Files are written to `outputs/`.
-
-## Try the dashboard without Jira
-
-`demo.cmd` runs the same dashboard with fictional data. It needs no Jira URL, user ID, or password and makes no Jira requests.
+## Demo
 
 ```bat
 demo.cmd
@@ -59,7 +49,7 @@ demo.cmd --no-open
 demo.cmd --port 8765
 ```
 
-The demo provides twelve fictional projects and eight fictional users. Its generated issue data is deterministic for a year and project. Demo preferences are stored separately in `.local/demo-inputs.json`; they do not overwrite `.local/inputs.json`.
+Demo has twelve fictional projects and eight fictional users. Data is repeatable for a year and project. Demo settings are stored separately in `.local/demo-inputs.json`.
 
 ## Authentication and security
 
@@ -71,36 +61,27 @@ By default, enter the password at each launch. The optional **Auto login** contr
 
 ## Development
 
-Run `dev.cmd` to start the demo dashboard with automatic reload:
-
 ```bat
 dev.cmd
 dev.cmd --no-open
 dev.cmd --port 8766
 ```
 
-Changes to HTML, CSS, or JavaScript assets reload the browser. Changes to Python files under `cores/python/` restart the demo server; the default port is `8765`, so the browser can reconnect to the restarted server. The development dashboard uses fictional data and never contacts Jira. The normal `run.cmd` and `demo.cmd` launchers do not watch files.
-
-Frontend assets are embedded into the page with `importlib.resources`; no separate static server, CDN, or JavaScript build is required. GIF capture uses Chrome and Node. Pillow is only needed to build the GIF and is not a project dependency.
+`dev.cmd` uses demo data. HTML, CSS, or JavaScript edits reload the browser. Python edits under `cores/python/` restart the server. Default port is `8765`.
 
 ## Tests
-
-Run the Python test suite with:
 
 ```bat
 uv run --locked python -m unittest discover -s tests -v
 ```
 
-Some browser checks also use Node and Chrome. Tests use synthetic Jira credentials and controlled responses; they do not verify authentication against a live Jira deployment.
+Some browser checks also need Node and Chrome. Tests use synthetic Jira data.
 
-## Project layout
+## Files
 
-| Path | Contents |
-| --- | --- |
-| `cores/python/` | Python application, dashboard server, and launchers |
-| `cores/html/` | Dashboard HTML, CSS, and JavaScript assets |
-| `docs/` | Showreel and Quick Start screenshots |
-| `tests/` | Unit tests and browser checks |
-| `issues/` | Local issue records and acceptance criteria |
-| `outputs/` | Generated reports; ignored by Git |
-| `.local/` | Local profiles, saved inputs, and runtime state; ignored by Git |
+- `cores/python/` — Python app and server.
+- `cores/html/` — HTML, CSS, and JavaScript.
+- `docs/` — showreel and screenshots.
+- `tests/` — unit and browser checks.
+- `outputs/` — generated reports; ignored by Git.
+- `.local/` — local settings and state; ignored by Git.

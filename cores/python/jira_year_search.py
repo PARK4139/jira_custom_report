@@ -4,7 +4,7 @@ from __future__ import annotations
 import base64
 from bisect import bisect_right
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 import json
 from urllib.request import Request
 
@@ -12,7 +12,7 @@ from jira_audit import record_event
 from jira_credentials import Credentials, validate_url
 from jira_issue_monthly import TZ, request_json
 from jira_jql_log import log_jql
-from jira_periods import period_ranges, unresolved_jql
+from jira_periods import period_ranges
 
 PAGE_SIZE = 1000
 MAX_WORKERS = 8
@@ -29,10 +29,11 @@ def year_jql(projects: list[str], year: int, reporters: list[str]) -> str:
             f'OR (resolved >= "{lower}" AND resolved < "{upper}")) ORDER BY key ASC')
 
 
-def _search_page(credentials: Credentials, jql: str, start_at: int, max_results: int) -> dict:
+def _search_page(credentials: Credentials, jql: str, start_at: int, max_results: int,
+                 fields: list[str] | None = None) -> dict:
     endpoint = validate_url(url=credentials.url, allow_insecure_http=credentials.allow_insecure_http) + "/rest/api/2/search"
     auth = base64.b64encode(f"{credentials.email}:{credentials.token}".encode()).decode()
-    payload = {"jql": jql, "fields": ["project", "created", "resolutiondate"],
+    payload = {"jql": jql, "fields": fields or ["project", "created", "resolutiondate"],
                "maxResults": max_results, "startAt": start_at}
     request = Request(endpoint, data=json.dumps(payload).encode("utf-8"), method="POST",
                       headers={"Authorization": f"Basic {auth}", "Accept": "application/json",
@@ -104,23 +105,96 @@ def fetch_year_issues(projects: list[str], year: int, reporters: list[str],
 
 def count_unresolved_at_period_ends(projects: list[str], year: int, reporters: list[str],
                                     credentials: Credentials, period: str) -> tuple[dict[str, list[dict]], int]:
-    """Query Jira's resolution history for each project's unresolved count at every bucket end."""
+    """Replay resolution changelogs, including issues whose empty resolution was never changed."""
+    keys = ", ".join(json.dumps(project, ensure_ascii=False) for project in projects)
+    names = ", ".join(json.dumps(name, ensure_ascii=False) for name in reporters)
+    lower, upper = date(year, 1, 1), date(year + 1, 1, 1)
+    jql = (f"project IN ({keys}) AND reporter IN ({names}) AND created < \"{upper}\" AND "
+           f'(resolution IS EMPTY OR resolutiondate >= "{lower}" OR '
+           f'resolution CHANGED DURING ("{lower}", "{upper}")) ORDER BY key ASC')
+    first = _search_page(credentials, jql, 0, PAGE_SIZE, ["project", "created", "resolution"])
+    total = first["total"]
+    size = first.get("maxResults") if type(first.get("maxResults")) is int and first["maxResults"] > 0 else PAGE_SIZE
+    if total > len(first["issues"]) and not first["issues"]:
+        raise RuntimeError("Jira pagination did not advance before reaching the total.")
+    starts = list(range(len(first["issues"]), total, size))
+    pages = [first]
+    if starts:
+        with ThreadPoolExecutor(max_workers=min(MAX_WORKERS, len(starts))) as pool:
+            pages += list(pool.map(lambda start: _search_page(credentials, jql, start, size, ["project", "created", "resolution"]), starts))
+    candidates = [issue for page in pages for issue in page["issues"]]
+    if len({issue.get("id") for issue in candidates}) != total:
+        raise RuntimeError("Jira results changed during the history query. Retry the report.")
+    base = validate_url(url=credentials.url, allow_insecure_http=credentials.allow_insecure_http)
+    auth = base64.b64encode(f"{credentials.email}:{credentials.token}".encode()).decode()
+    def histories(issue):
+        identity = issue.get("id")
+        if not isinstance(identity, str) or not identity.isdigit():
+            raise RuntimeError("Jira returned an invalid issue identity for history lookup.")
+        values, start_at, count, requests = [], 0, 100, 0
+        while True:
+            endpoint = f"{base}/rest/api/2/issue/{identity}/changelog?startAt={start_at}&maxResults={count}"
+            request = Request(endpoint, headers={"Authorization": f"Basic {auth}", "Accept": "application/json"})
+            result = request_json(request=request, event="issue_changelog")
+            requests += 1
+            batch = result.get("values", result.get("histories"))
+            total_changes = result.get("total")
+            if not isinstance(batch, list) or type(total_changes) is not int:
+                raise RuntimeError("Jira issue changelog response has an invalid shape.")
+            values.extend(batch)
+            if len(values) >= total_changes:
+                break
+            if not batch:
+                raise RuntimeError("Jira changelog pagination did not advance.")
+            start_at += len(batch)
+        events = []
+        for history in values:
+            changed = _local_date(history.get("created"))
+            for item in history.get("items", []):
+                if item.get("field", "").casefold() == "resolution":
+                    if "to" not in item and "toString" not in item:
+                        raise RuntimeError("Jira returned an incomplete resolution history item.")
+                    old_value = item.get("fromString") or item.get("from")
+                    new_value = item.get("toString") or item.get("to")
+                    if changed is None:
+                        raise RuntimeError("Jira returned a resolution change without a timestamp.")
+                    events.append((changed, bool(old_value), bool(new_value)))
+        return issue, sorted(events, key=lambda event: event[0]), requests
+    with ThreadPoolExecutor(max_workers=min(MAX_WORKERS, max(1, len(candidates)))) as pool:
+        histories_by_issue = list(pool.map(histories, candidates)) if candidates else []
     buckets = period_ranges(year, period)
-    jobs = [(project, bucket, unresolved_jql(project, reporters, bucket['start'], bucket['end']))
-            for project in projects for bucket in buckets]
-    def count(job):
-        project, bucket, jql = job
-        result = _search_page(credentials, jql, 0, 1)
-        return project, bucket['start'], result['total'], jql
-    with ThreadPoolExecutor(max_workers=min(MAX_WORKERS, len(jobs))) as pool:
-        results = list(pool.map(count, jobs))
     grouped = {project: [] for project in projects}
-    counts = {(project, start): (total, jql) for project, start, total, jql in results}
+    project_lookup = {project.casefold(): project for project in projects}
+    snapshots = {(project, bucket['start']): 0 for project in projects for bucket in buckets}
+    history_requests = 0
+    for issue, events, issue_requests in histories_by_issue:
+        history_requests += issue_requests
+        fields = issue.get('fields')
+        project_data = fields.get('project') if isinstance(fields, dict) else None
+        project = project_lookup.get(project_data.get('key', '').casefold()) if isinstance(project_data, dict) else None
+        created = _local_date(fields.get('created')) if isinstance(fields, dict) else None
+        if project is None or created is None:
+            raise RuntimeError("Jira issue fields are invalid during resolution history lookup.")
+        for bucket in buckets:
+            as_of = date.fromisoformat(bucket['end']) - timedelta(days=1)
+            if created > as_of:
+                continue
+            current_resolution = fields.get('resolution')
+            resolved = current_resolution is not None
+            if events:
+                resolved = events[0][1]
+            for changed, _old_resolved, new_resolved in events:
+                if changed <= as_of:
+                    resolved = new_resolved
+                else:
+                    break
+            if not resolved:
+                snapshots[(project, bucket['start'])] += 1
     for project in projects:
         for bucket in buckets:
-            total, jql = counts[(project, bucket['start'])]
-            grouped[project].append(dict(bucket, unresolved=total, queries={'unresolved': jql}))
-    return grouped, len(jobs)
+            grouped[project].append(dict(bucket, unresolved=snapshots[(project, bucket['start'])],
+                                         queries={'unresolved': jql + '\n\nResolution history replayed from Jira changelogs.'}))
+    return grouped, len(pages) + history_requests
 
 
 def count_buckets(records, year: int, period: str) -> list[dict]:
