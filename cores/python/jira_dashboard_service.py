@@ -20,14 +20,10 @@ def build_report(settings: Settings, credentials: Credentials, project_names: di
                                                                             for field in ('created', 'resolved')}) for row in project_rows]
             if rows is None:
                 rows = [dict(row, queries={field: [] for field in ('created', 'resolved')}) for row in project_rows]
-                if 'carry' in rows[0]:
-                    rows[0]['carry'] = dict(rows[0]['carry'])
             else:
                 for total, row in zip(rows, project_rows):
                     for field in ('created', 'resolved'):
                         total[field] += row[field]
-                        if 'carry' in row:
-                            total['carry'][field] += row['carry'][field]
             for row in rows:
                 for field in ('created', 'resolved'):
                     row['queries'][field].append(period_jql(project, settings.reporters, row['start'], row['end'], field))

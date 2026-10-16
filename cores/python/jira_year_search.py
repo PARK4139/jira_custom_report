@@ -12,7 +12,7 @@ from jira_audit import record_event
 from jira_credentials import Credentials, validate_url
 from jira_issue_monthly import TZ, request_json
 from jira_jql_log import log_jql
-from jira_periods import QUARTERS, period_ranges
+from jira_periods import period_ranges
 
 PAGE_SIZE = 1000
 MAX_WORKERS = 8
@@ -105,17 +105,9 @@ def fetch_year_issues(projects: list[str], year: int, reporters: list[str],
 def count_buckets(records, year: int, period: str) -> list[dict]:
     rows = [dict(bucket, created=0, resolved=0) for bucket in period_ranges(year, period)]
     starts = [date.fromisoformat(row["start"]) for row in rows]
-    lower, upper = starts[0], date.fromisoformat(rows[-1]["end"])
-    carry = {"created": 0, "resolved": 0}
+    lower, upper = date(year, 1, 1), date(year + 1, 1, 1)
     for _, created, resolved in records:
         for field, value in (("created", created), ("resolved", resolved)):
-            if value is None:
-                continue
-            if lower <= value < upper:
+            if value is not None and lower <= value < upper:
                 rows[bisect_right(starts, value) - 1][field] += 1
-            elif period in QUARTERS and date(year, 1, 1) <= value < lower:
-                carry[field] += 1
-    if period in QUARTERS:
-        # Quarters are cumulative from January 1 like every other period: earlier quarters are the starting level.
-        rows[0]["carry"] = carry
     return rows

@@ -57,20 +57,22 @@ async function main() {
     const removeChip = async (id, index) => { const spot = await evaluate(`(()=>{const r=document.getElementById('${id}').parentElement.querySelectorAll('.chip-remove')[${index}].getBoundingClientRect();return [r.x+r.width/2,r.y+r.height/2]})()`); for (const kind of ['mousePressed', 'mouseReleased']) await send('Input.dispatchMouseEvent', {type: kind, x: spot[0], y: spot[1], button: 'left', clickCount: 1}); };
     const hint = async id => (await listTexts(id)).join();
 
-    // Period dropdown: 1주간 replaces 주간, and 1분기-4분기 are added; a quarter is weekly and cumulative from January 1.
+    // Period dropdown: 일간 and 분기간 are added, 주간 is 1주간, and the separate 1-4분기 options are gone.
     const setSelect = (id, value) => evaluate(`(()=>{const node=document.getElementById('${id}');node.value='${value}';node.dispatchEvent(new Event('change',{bubbles:true}))})()`);
     await setSelect('locale', 'ko');
     assert.deepEqual(await evaluate("[...document.getElementById('period-select').options].map(option=>option.textContent)"),
-      ['1주간', '2주간', '월간', '연간', '1분기', '2분기', '3분기', '4분기'], 'period options, in Korean');
-    await setSelect('period-select', 'q2');
-    await waitFor(() => evaluate("document.getElementById('report-title').textContent.includes('2분기')"), 'quarter title');
-    assert.equal(await evaluate("document.querySelectorAll('#project-graphs .project-report table tr').length"), 14, 'Q2 has 13 weekly rows plus the header');
+      ['일간', '1주간', '2주간', '월간', '분기간', '연간'], 'period options, in Korean');
+    await setSelect('period-select', 'quarterly');
+    await waitFor(() => evaluate("document.getElementById('report-title').textContent.includes('quarterly')"), 'quarterly title');
+    assert.equal(await evaluate("document.querySelectorAll('#project-graphs .project-report table tr').length"), 5, 'four quarters plus the header');
     const quarterValues = await evaluate("[...document.querySelectorAll('#project-graphs .project-report svg title[data-cumulative-field=created]')].map(node=>Number(node.dataset.cumulativeValue))");
-    assert.equal(quarterValues.length, 13);
-    assert.ok(quarterValues[0] > 45, 'Q2 starts from the January-March carry-over, not from zero');
-    assert.ok(quarterValues.every((value, index) => index === 0 || value >= quarterValues[index - 1]), 'the cumulative line never goes down');
-    const quarterShot = await send('Page.captureScreenshot', {format: 'png'});
-    await fs.writeFile(path.join(output, 'quarter-q2.png'), Buffer.from(quarterShot.data, 'base64'));
+    assert.equal(quarterValues.length, 4);
+    assert.ok(quarterValues.every((value, index) => index === 0 || value >= quarterValues[index - 1]), 'cumulative from January 1');
+    await setSelect('period-select', 'daily');
+    await waitFor(() => evaluate("document.getElementById('report-title').textContent.includes('daily')"), 'daily title');
+    assert.equal(await evaluate("document.querySelectorAll('#project-graphs .project-report table tr').length"), 366, 'one row per day of 2026 plus the header');
+    const dailyShot = await send('Page.captureScreenshot', {format: 'png'});
+    await fs.writeFile(path.join(output, 'daily.png'), Buffer.from(dailyShot.data, 'base64'));
     await setSelect('period-select', 'monthly');
     await setSelect('locale', 'en');
     await waitFor(() => evaluate("document.getElementById('report-title').textContent.includes('monthly')"), 'back to monthly');

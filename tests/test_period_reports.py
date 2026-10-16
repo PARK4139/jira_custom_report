@@ -11,30 +11,39 @@ import jira_audit
 import jira_issue_monthly as report
 from jira_credentials import Credentials
 from datetime import date, timedelta
-from jira_periods import BASE_PERIODS, PERIODS, QUARTERS, period_ranges
+from jira_periods import BASE_PERIODS, PERIODS, period_ranges
 from jira_settings import Settings
 
 
-class QuarterRangeTests(unittest.TestCase):
-    def test_each_quarter_is_covered_by_weekly_buckets_without_gaps_or_overlaps(self):
+class QuarterlyAndDailyRangeTests(unittest.TestCase):
+    def test_quarterly_has_four_quarter_buckets_covering_the_year(self):
         for year in (2024, 2026):
-            for number, period in enumerate(QUARTERS, start=1):
-                with self.subTest(year=year, period=period):
-                    rows = period_ranges(year, period)
-                    quarter_start = date(year, 3 * number - 2, 1)
-                    quarter_end = date(year + 1, 1, 1) if number == 4 else date(year, 3 * number + 1, 1)
-                    self.assertEqual(rows[0]['start'], str(quarter_start))
-                    self.assertEqual(rows[-1]['end'], str(quarter_end))
-                    self.assertTrue(all(a['end'] == b['start'] for a, b in zip(rows, rows[1:])))
-                    self.assertTrue(all(date.fromisoformat(r['end']) - date.fromisoformat(r['start']) <= timedelta(days=7) for r in rows))
-                    self.assertEqual(len(rows), -(-(quarter_end - quarter_start).days // 7))
-        self.assertEqual([len(period_ranges(2026, q)) for q in QUARTERS], [13, 13, 14, 14])
-        self.assertEqual(period_ranges(2026, 'q3')[0]['label'], '07/01')
+            with self.subTest(year=year):
+                rows = period_ranges(year, 'quarterly')
+                self.assertEqual([row['label'] for row in rows], ['Q1', 'Q2', 'Q3', 'Q4'])
+                self.assertEqual([(row['start'], row['end']) for row in rows],
+                                 [(f'{year}-01-01', f'{year}-04-01'), (f'{year}-04-01', f'{year}-07-01'),
+                                  (f'{year}-07-01', f'{year}-10-01'), (f'{year}-10-01', f'{year + 1}-01-01')])
 
-    def test_unknown_periods_are_rejected(self):
-        for period in ('q0', 'q5', 'quarterly', 'Q1', ''):
+    def test_daily_has_one_bucket_per_calendar_day_including_leap_day(self):
+        for year, days in ((2024, 366), (2026, 365)):
+            with self.subTest(year=year):
+                rows = period_ranges(year, 'daily')
+                self.assertEqual(len(rows), days)
+                self.assertEqual((rows[0]['start'], rows[0]['label']), (f'{year}-01-01', '01/01'))
+                self.assertEqual((rows[-1]['end'], rows[-1]['label']), (f'{year + 1}-01-01', '12/31'))
+                self.assertTrue(all(a['end'] == b['start'] for a, b in zip(rows, rows[1:])))
+                self.assertTrue(all(date.fromisoformat(r['end']) - date.fromisoformat(r['start']) == timedelta(days=1) for r in rows))
+        self.assertIn('02/29', [row['label'] for row in period_ranges(2024, 'daily')])
+
+    def test_removed_or_unknown_periods_are_rejected(self):
+        for period in ('q1', 'q2', 'q3', 'q4', 'q0', 'Quarterly', 'hourly', ''):
             with self.subTest(period=period), self.assertRaises(ValueError):
                 period_ranges(2026, period)
+
+    def test_cli_default_stays_fast_and_can_opt_in_to_quarterly_and_daily(self):
+        self.assertEqual(BASE_PERIODS, ('1week', '2week', 'monthly', 'yearly'))
+        self.assertEqual(PERIODS, BASE_PERIODS + ('quarterly', 'daily'))
 
 
 class PeriodReportTests(unittest.TestCase):

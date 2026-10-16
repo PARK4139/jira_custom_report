@@ -47,7 +47,8 @@ if(url==='/api/projects')return {ok:true,async json(){return {projects:[{key:'DE
 const payload=JSON.parse(options.body);requests.push(payload);
 if(failure)return {ok:false,async json(){return {error:'Synthetic query failure'}}};
 const datasets={};for(const period of ['1week','2week','monthly','yearly'])datasets[period]=[payload.year-2020,0,2].map((created,index)=>({label:String(index+1),start:payload.year+'-0'+(index+1)+'-01',end:payload.year+'-0'+(index+2)+'-01',created,resolved:[1,0,3][index],queries:{created:'created query '+payload.year,resolved:'resolved query '+payload.year}}));
-datasets.q2=[{label:'04/01',start:payload.year+'-04-01',end:payload.year+'-04-08',created:1,resolved:1,carry:{created:10,resolved:6},queries:{created:'q',resolved:'q'}},{label:'04/08',start:payload.year+'-04-08',end:payload.year+'-04-15',created:2,resolved:1,queries:{created:'q',resolved:'q'}}];
+datasets.quarterly=[3,2,0,5].map((created,index)=>({label:'Q'+(index+1),start:payload.year+'-'+['01','04','07','10'][index]+'-01',end:(index<3?payload.year+'-'+['04','07','10'][index]:(payload.year+1)+'-01')+'-01',created,resolved:[1,2,1,2][index],queries:{created:'q',resolved:'q'}}));
+datasets.daily=[1,0,2].map((created,index)=>({label:'01/0'+(index+1),start:payload.year+'-01-0'+(index+1),end:payload.year+'-01-0'+(index+2),created,resolved:[0,1,1][index],queries:{created:'d',resolved:'d'}}));
 const projectReports=payload.projects.map((key,i)=>({key,name:key==='DEMO'?'Quality team':'Other team',datasets:Object.fromEntries(Object.entries(datasets).map(([period,rows])=>[period,rows.map(row=>({...row,created:row.created+i+1}))]))}));
 return {ok:true,async json(){return {datasets,projectReports,queryCount:186*payload.projects.length}}};
 }});
@@ -85,23 +86,22 @@ assert.ok(Math.abs(points[2].attributes.cy-(320-290*10/12))<1e-8,'chart scale us
 const ratios=project=>project.querySelectorAll('text').filter(node=>node.dataset.ratio);
 assert.equal(ratios(firstProject).length,1,'ratio is drawn inside each graph');assert.equal(ratios(firstProject)[0].dataset.ratio,'40.0%');assert.equal(ratios(firstProject)[0].textContent,'Resolved / Created: 40.0%');
 assert.equal(firstProject.querySelector('table').children[2].children[1].textContent,'1','project table remains per-period');
-// Quarters are cumulative from January 1: the chart starts from the carry-over of the earlier quarters.
-elements.get('period-select').value='q2';for(const handler of elements.get('period-select').handlers.change)handler();
+// Quarterly (four quarter buckets) and daily are cumulative from January 1 like every other period.
+elements.get('period-select').value='quarterly';for(const handler of elements.get('period-select').handlers.change)handler();
 const quarterProject=elements.get('project-graphs').children[0];
 const quarterPoints=quarterProject.querySelectorAll('circle');
-assert.deepEqual(quarterPoints.slice(0,2).map(point=>point.children[0].dataset.cumulativeValue),['12','15'],'created starts from the carry-over (10) before adding the quarter');
-assert.deepEqual(quarterPoints.slice(2).map(point=>point.children[0].dataset.cumulativeValue),['7','8'],'resolved starts from the carry-over (6)');
-const quarterRatio=quarterProject.querySelectorAll('text').filter(node=>node.dataset.ratio)[0];
-assert.equal(quarterRatio.dataset.ratio,'53.3%','the ratio is the cumulative ratio at the end of the quarter (8 / 15)');
-assert.deepEqual(quarterProject.children[1].children.map(span=>span.dataset.count),['15','8'],'totals are the cumulative values the chart ends on');
-assert.equal(quarterProject.querySelector('table').children.length,3,'the table keeps the per-week rows of the quarter');
-assert.match(elements.get('report-title').textContent,/Q2 ISSUE/,'the title names the quarter');
-assert.deepEqual(JSON.parse(vm.runInContext("JSON.stringify(['q1','q2','q3','q4'].map(period=>messages.ko.periods[period]))",context)),['1분기','2분기','3분기','4분기']);
-assert.equal(vm.runInContext("messages.ko.periods['1week']",context),'1주간');
-assert.equal(vm.runInContext("messages.ko.periods['2week']",context),'2주간');
-vm.runInContext("locale='ko';translateReport()",context);
-assert.match(elements.get('report-title').textContent,/2분기 ISSUE/,'the Korean title names the quarter');
-vm.runInContext("locale='en';translateReport()",context);
+assert.deepEqual(quarterPoints.slice(0,4).map(point=>point.children[0].dataset.cumulativeValue),['4','7','8','14'],'created accumulates over Q1..Q4');
+assert.deepEqual(quarterPoints.slice(4).map(point=>point.children[0].dataset.cumulativeValue),['1','3','4','6'],'resolved accumulates over Q1..Q4');
+assert.equal(quarterProject.querySelectorAll('text').filter(node=>node.dataset.ratio)[0].dataset.ratio,'42.9%','ratio is cumulative resolved / created (6 / 14)');
+assert.equal(quarterProject.querySelector('table').children.length,5,'one table row per quarter plus the header');
+assert.match(elements.get('report-title').textContent,/quarterly ISSUE/,'the title names the period');
+elements.get('period-select').value='daily';for(const handler of elements.get('period-select').handlers.change)handler();
+const dailyProject=elements.get('project-graphs').children[0];
+assert.deepEqual(dailyProject.querySelectorAll('circle').slice(0,3).map(point=>point.children[0].dataset.cumulativeValue),['2','3','6'],'daily created accumulates day by day');
+assert.match(elements.get('report-title').textContent,/daily ISSUE/);
+const koPeriods=JSON.parse(vm.runInContext("JSON.stringify(['daily','1week','2week','monthly','quarterly','yearly'].map(period=>messages.ko.periods[period]))",context));
+assert.deepEqual(koPeriods,['일간','1주간','2주간','월간','분기간','연간'],'Korean period names');
+assert.deepEqual(JSON.parse(vm.runInContext("JSON.stringify(Object.keys(messages.ko.periods))",context)).filter(key=>/^q\d$/.test(key)),[],'the separate 1-4 quarter options are gone');
 elements.get('period-select').value='yearly';for(const handler of elements.get('period-select').handlers.change)handler();
 const beforePreferences=requests.length;
 elements.get('locale').value='ko';for(const handler of elements.get('locale').handlers.change)handler();

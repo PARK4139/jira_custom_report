@@ -25,7 +25,7 @@ from jira_report_view import render_html
 from jira_credentials import (Credentials, delete_credentials, load_credentials, prompt_credentials,
                               save_credentials, validate_profile, validate_url)
 from jira_settings import Settings, complete_settings, load_settings, save_settings
-from jira_periods import BASE_PERIODS, PERIODS, QUARTERS, period_ranges, period_jql
+from jira_periods import BASE_PERIODS, PERIODS, period_ranges, period_jql
 
 TZ = ZoneInfo("Asia/Seoul")
 
@@ -138,21 +138,12 @@ def collect_period_counts(project: str, year: int, reporters: list[str], credent
                                                       **({"allow_insecure_http": True} if credentials.allow_insecure_http else {})))
             record_event(event="period_query", outcome=f"{period}_{field}", count=row[field])
             print(f"{project} {period} {row['start']} {field}: {row[field]}")
-    if period in QUARTERS:
-        # Cumulative from January 1: count what was created/resolved before the quarter starts.
-        year_start, carry = f"{year}-01-01", {"created": 0, "resolved": 0}
-        for field in carry:
-            if rows[0]["start"] != year_start:
-                carry[field] = sum(1 for _ in fetch_issues(credentials.url, credentials.email, credentials.token,
-                                                           period_jql(project, reporters, year_start, rows[0]["start"], field),
-                                                           **({"allow_insecure_http": True} if credentials.allow_insecure_http else {})))
-        rows[0]["carry"] = carry
     return rows
 
 
 def write_period_csv(path: Path, rows: list[dict]):
     with path.open("w", newline="", encoding="utf-8-sig") as stream:
-        writer = csv.DictWriter(stream, fieldnames=["label", "start", "end", "created", "resolved"], extrasaction="ignore")
+        writer = csv.DictWriter(stream, fieldnames=["label", "start", "end", "created", "resolved"])
         writer.writeheader()
         writer.writerows(rows)
 
@@ -184,7 +175,7 @@ def open_html_report(path: Path) -> bool:
 
 def export_main():
     parser = argparse.ArgumentParser(description="Jira Server/Data Center issue trend report")
-    parser.add_argument("--periods", nargs="+", choices=PERIODS, default=list(BASE_PERIODS), help="Reporting periods to query (default: 1week 2week monthly yearly; add q1-q4 for quarters)")
+    parser.add_argument("--periods", nargs="+", choices=PERIODS, default=list(BASE_PERIODS), help="Reporting periods to query (default: 1week 2week monthly yearly; add quarterly or daily; daily sends two JQL queries per day)")
     parser.add_argument("--year", type=int, help="Report year (saved in the local profile)")
     parser.add_argument("--project", nargs="+", help="Jira project keys")
     parser.add_argument("--reporter", nargs="+", help="Jira reporter user IDs or names")

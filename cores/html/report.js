@@ -1,17 +1,15 @@
 
 const values=CHART_DATA;
 const datasets=PERIOD_DATA;
-const titles={'1week':'1 week','2week':'2 weeks',monthly:'Monthly',yearly:'Yearly',q1:'Q1',q2:'Q2',q3:'Q3',q4:'Q4'};
+const titles={daily:'Daily','1week':'1 week','2week':'2 weeks',monthly:'Monthly',yearly:'Yearly',quarterly:'Quarterly'};
 const byId=id=>document.getElementById(id), ns='http://www.w3.org/2000/svg';
-// Every view is cumulative from January 1: a quarter starts from the counts of the quarters before it (rows[0].carry).
-function carryOf(rows){const carry=rows[0]&&rows[0].carry;return {created:carry?carry.created:0,resolved:carry?carry.resolved:0}}
+// Every view is cumulative from January 1 of the selected year.
 function cumulativeRows(rows){
-const carry=carryOf(rows);let created=carry.created,resolved=carry.resolved;
+let created=0,resolved=0;
 return rows.map(row=>({...row,created:created+=row.created,resolved:resolved+=row.resolved}));
 }
 function cumulativeTotals(rows){
-const carry=carryOf(rows);
-return {created:rows.reduce((sum,row)=>sum+row.created,carry.created),resolved:rows.reduce((sum,row)=>sum+row.resolved,carry.resolved)};
+return {created:rows.reduce((sum,row)=>sum+row.created,0),resolved:rows.reduce((sum,row)=>sum+row.resolved,0)};
 }
 function add(id,tag,attrs,text){const el=document.createElementNS(ns,tag);for(const [k,v] of Object.entries(attrs))el.setAttribute(k,v);if(text!==undefined)el.textContent=text;byId(id).append(el);return el}
 function render(period){

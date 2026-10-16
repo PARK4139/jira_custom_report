@@ -13,7 +13,7 @@ from pathlib import Path
 import tempfile
 
 from jira_credentials import Credentials
-from jira_periods import BASE_PERIODS, PERIODS, QUARTERS, period_ranges
+from jira_periods import PERIODS, period_ranges
 import jira_issue_monthly as report
 import jira_dashboard_server as web
 import jira_dashboard_service as service
@@ -136,7 +136,7 @@ class DashboardTests(unittest.TestCase):
         self.assertNotIn(self.credentials.token, self.saved_file.read_text(encoding='utf-8'))
         self.assertEqual(self.request({'values': {}}, path='/api/inputs', **{'X-Session-Token': 'bad'})[0], 403)
         self.assertEqual(self.request({'values': {}}, path='/api/inputs', Origin='https://evil.example')[0], 403)
-        for values in ({'token': 'x'}, {'theme': 'blue'}, {'year': 2024}, {'year': '20x4'}, {'period': 'daily'},
+        for values in ({'token': 'x'}, {'theme': 'blue'}, {'year': 2024}, {'year': '20x4'}, {'period': 'hourly'},
                        {'projects': 'not json'}, {'projects': '{"a": 1}'}, {'reporters': '[{"value": "a"}]'},
                        {'projects': json.dumps(['x'] * 101)}, {'projects': json.dumps(['x' * 201])},
                        {'reporters': json.dumps(['a\nb'])}, {'locale': 'ko' * 20000}):
@@ -195,16 +195,14 @@ class DashboardTests(unittest.TestCase):
                 for period, rows in result['datasets'].items():
                     self.assertEqual(len(rows), len(period_ranges(year, period)))
                     total = (year - 2020) * 2
-                    if period in QUARTERS and period != 'q1':
-                        self.assertEqual((rows[0]['created'], rows[0]['resolved']), (0, 0), 'later quarters start empty')
-                        self.assertEqual(rows[0]['carry'], {'created': total, 'resolved': total}, 'January 1 counts carry into the quarter')
+                    if period == 'daily':  # created on January 1, resolved on January 2: two different daily buckets
+                        self.assertEqual([(r['created'], r['resolved']) for r in rows[:2]], [(total, 0), (0, total)])
+                        self.assertTrue(all(r['created'] == r['resolved'] == 0 for r in rows[2:]))
                     else:
                         self.assertEqual((rows[0]['created'], rows[0]['resolved']), (total, total))
-                    if period == 'q1':
-                        self.assertEqual(rows[0]['carry'], {'created': 0, 'resolved': 0})
-                    self.assertTrue(all(r['created'] == r['resolved'] == 0 for r in rows[1:]))
+                        self.assertTrue(all(r['created'] == r['resolved'] == 0 for r in rows[1:]))
                     self.assertIn(f'created >= "{rows[0]["start"]}"', rows[0]['queries']['created'])
-                    self.assertEqual(rows[0]['start'], f'{year}-01-01' if period not in QUARTERS else period_ranges(year, period)[0]['start'])
+                    self.assertEqual(rows[0]['start'], f'{year}-01-01')
                     self.assertIn('project = "DEMO"', rows[0]['queries']['created'])
                     self.assertIn('project = "OTHER"', rows[0]['queries']['created'])
                 self.assertNotIn(self.credentials.token, body)
@@ -233,12 +231,7 @@ class DashboardTests(unittest.TestCase):
         data = json.loads(body)
         first, second = data['projectReports']
         self.assertEqual((first['name'], second['name']), ('Quality team', 'Platform team'))
-        for quarter in QUARTERS[1:]:
-            self.assertEqual(first['datasets'][quarter][0]['carry']['created'], 2)
-            self.assertEqual(second['datasets'][quarter][0]['carry']['created'], 7)
-            self.assertEqual(data['datasets'][quarter][0]['carry']['created'], 9, 'combined carry adds the projects')
-            self.assertEqual(first['datasets'][quarter][0]['carry']['created'], 2, 'adding projects never changes another project carry')
-        for period in BASE_PERIODS + ('q1',):
+        for period in PERIODS:
             self.assertEqual(first['datasets'][period][0]['created'], 2)
             self.assertEqual(second['datasets'][period][0]['created'], 7)
             self.assertEqual(data['datasets'][period][0]['created'], 9)

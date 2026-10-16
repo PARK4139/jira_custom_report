@@ -10,7 +10,7 @@ const savedYear=Number(preference('year',''));
 yearSelect.value=String(Number.isInteger(savedYear)&&savedYear>=1970&&savedYear<=config.currentYear+1?savedYear:config.currentYear);
 byId('report-panel').hidden=true;byId('period-tabs').hidden=true;
 const savedPeriod=preference('period','monthly');
-let activePeriod=['1week','2week','monthly','yearly','q1','q2','q3','q4'].includes(savedPeriod)?savedPeriod:'monthly',hasResults=false;
+let activePeriod=['daily','1week','2week','monthly','yearly','quarterly'].includes(savedPeriod)?savedPeriod:'monthly',hasResults=false;
 let projectCatalog=[];
 let loadedProjectReports=[];
 const projectsInput=byId('projects'),reportersInput=byId('reporters');
