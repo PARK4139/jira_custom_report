@@ -2,6 +2,14 @@
 
 > **처음 쓰신다면 [QUICK START GUIDE](QUICK_START.md)** (스크린샷 포함)를 먼저 보세요. / New here? Start with the [QUICK START GUIDE](QUICK_START.md).
 
+<!-- showreel:start -->
+![Showreel (10 s): run.cmd, password, automatic query, autocomplete, periods, tooltip](docs/showreel.gif)
+
+*10-second showreel: `run.cmd` → password → the dashboard queries by itself → project/reporter autocomplete (type, Tab) → switch period → hover for cumulative created / resolved / ratio.
+The terminal part is drawn from the real console messages of `run.cmd`; the dashboard is the real UI recorded on `demo.cmd` dummy data (the numbers are made up).
+Rebuild: `node tests/capture_showreel.cjs` then `uv run --no-project --with pillow python tests/build_showreel.py`.*
+<!-- showreel:end -->
+
 On-premises Jira Server/Data Center issue trends in a local web app.
 
 ## Start
