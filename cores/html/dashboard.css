@@ -29,13 +29,19 @@ body{max-width:none;margin:0;padding:0;background:var(--page);color:var(--ink);f
 .controls select:hover,.controls input:hover{background:var(--page)}
 .controls input::placeholder{color:var(--muted);opacity:.7}
 #projects{width:100%;text-overflow:ellipsis}
-.controls label{position:relative}
 .combo-list{position:absolute;z-index:20;left:0;right:0;top:100%;margin:2px 0 0;padding:2px;max-height:260px;overflow-y:auto;list-style:none;background:var(--surface);border:1px solid var(--line);border-radius:3px;box-shadow:0 4px 12px rgba(9,30,66,.3);font-weight:400}
 .combo-list[hidden]{display:none}
 .combo-list li{padding:6px 8px;border-radius:3px;color:var(--ink);cursor:pointer;overflow-wrap:anywhere}
 .combo-list li.active,.combo-list li:hover{background:var(--accent);color:#fff}
 .combo-list li.empty{color:var(--muted);cursor:default;background:none}
 .combo-list mark{background:none;color:inherit;font-weight:700;text-decoration:underline}
+.chip-field{position:relative;display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding:4px;background:var(--surface);border:1px solid var(--line);border-radius:3px;cursor:text}
+.chip-field:focus-within{outline:2px solid var(--focus);outline-offset:1px}
+.controls .chip-field input{flex:1 1 90px;width:auto;min-width:90px;padding:4px;border:0;outline:0;background:transparent}
+.chip{display:inline-flex;align-items:center;max-width:100%;gap:2px;padding:1px 2px 1px 10px;color:var(--ink);background:var(--page);border:1px solid var(--line);border-radius:12px;font-size:13px;font-weight:400}
+.chip-label{overflow-wrap:anywhere}
+.chip-remove{padding:0 6px;font:inherit;line-height:1.2;color:var(--muted);background:none;border:0;border-radius:50%;cursor:pointer}
+.chip-remove:hover{color:var(--ink);background:var(--line)}
 #query-status{min-height:20px;margin:14px 0 0;padding-top:12px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
 #query-status.error,.error{color:var(--error)!important}
 #report-panel[hidden],.tabs[hidden],#period-controls[hidden]{display:none}

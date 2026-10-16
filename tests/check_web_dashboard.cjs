@@ -9,6 +9,8 @@ class Element {
   get selectedOptions(){return this.children.filter(option=>option.selected)}
   constructor(tag=''){this.tag=tag;this.children=[];this.attributes={};this.dataset={};this.handlers={};this.value='';this.textNode={textContent:''};this.style={setProperty(){}};}
   append(...items){this.children.push(...items)}
+  before(){}
+  remove(){}
   replaceChildren(...items){this.children=items}
   setAttribute(key,value){this.attributes[key]=value}
   getAttribute(key){return this.attributes[key]}
@@ -39,6 +41,7 @@ const form=document.getElementById('query-form');
 form.elements=['year','projects','reporters','query-button'].map(id=>document.getElementById(id));
 let failure=false;const requests=[];
 const context=vm.createContext({document,setTimeout,clearTimeout,navigator:{language:'en'},localStorage:{getItem(){return null},setItem(){}},matchMedia(){return {matches:false}},getComputedStyle(){return {getPropertyValue(key){return ({'--created':'#bd2944','--resolved':'#16714d','--grid':'#d2dce8','--muted':'#405674'})[key]||'#e8edf8'}}},async fetch(url,options){
+if(url==='/api/reporters')return {ok:true,async json(){return {reporters:[{name:'sample',displayName:'Sample User'}]}}};
 if(url==='/api/projects')return {ok:true,async json(){return {projects:[{key:'DEMO',name:'Quality team'},{key:'OTHER',name:'Other team'}]}}};
 const payload=JSON.parse(options.body);requests.push(payload);
 if(failure)return {ok:false,async json(){return {error:'Synthetic query failure'}}};
@@ -52,7 +55,7 @@ await new Promise(resolve=>setImmediate(resolve));
 assert.equal(requests.length,0);
 assert.equal(elements.get('projects').disabled,false,'project field is ready after the catalog loads');
 assert.equal(elements.get('report-panel').hidden,true);
-elements.get('projects').value='DEMO, OTHER';
+vm.runInContext("projectsField.set([{value:'DEMO',label:'Quality team (DEMO)'},{value:'OTHER',label:'Other team (OTHER)'}])",context);
 for(const year of [2024,2025]){
 elements.get('year').value=String(year);
 await vm.runInContext('loadReport()',context);
@@ -92,7 +95,7 @@ assert.equal(project.querySelector('line').getAttribute('stroke'),'#d2dce8');
 assert.equal(requests.length,beforePreferences,'language/theme must not query Jira');
 assert.equal(vm.runInContext('JSON.stringify(loadedProjectReports)',context),rawProjectData,'redrawing cannot accumulate twice');
 elements.get('locale').value='en';for(const handler of elements.get('locale').handlers.change)handler();
-elements.get('projects').value='OTHER';
+vm.runInContext("projectsField.set([{value:'OTHER',label:'Other team (OTHER)'}])",context);
 await vm.runInContext('loadReport()',context);
 assert.deepEqual(requests.at(-1).projects,['OTHER']);
 assert.equal(elements.get('project-graphs').children.length,1);

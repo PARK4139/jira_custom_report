@@ -9,6 +9,8 @@ class Element {
   get selectedOptions(){return this.children.filter(option=>option.selected)}
   constructor(tag=''){this.tag=tag;this.children=[];this.attributes={};this.dataset={};this.handlers={};this.value='';this.textNode={textContent:''};this.style={setProperty(){}};}
   append(...items){this.children.push(...items)}
+  before(){}
+  remove(){}
   replaceChildren(...items){this.children=items}
   setAttribute(key,value){this.attributes[key]=value}
   getAttribute(key){return this.attributes[key]}
@@ -39,24 +41,27 @@ const html=fs.readFileSync(process.argv[2],'utf8');assert.ok(!html.includes('id=
 vm.runInContext(html.match(/<script>([\s\S]*?)<\/script>/)[1],context);
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
 async function flush(){const pending=[...timers.values()];timers.clear();for(const fn of pending)fn();await settle()}
+function entry(id,text){const input=elements.get(id);input.value=text;for(const fn of input.handlers.input||[])fn();const enter={key:'Enter',preventDefault(){}};for(const fn of input.handlers.keydown||[])fn(enter)}
+const chipValues=field=>JSON.parse(vm.runInContext(`JSON.stringify(${field}Field.values.map(chip=>chip.value))`,context));
 function change(id,value,event='change'){if(value!==undefined)elements.get(id).value=value;for(const fn of elements.get(id).handlers[event]||[])fn()}
 await settle();await flush();assert.equal(requests.length,1,'valid defaults load without submit');
 const count=requests.length;change('period-select','1week');assert.equal(requests.length,count);assert.equal(elements.get('project-graphs').children.length,1);
 assert.match(elements.get('period-heading').textContent,/1 week|Weekly/);
-change('projects','demo, Platform team');await flush();assert.deepEqual(requests.at(-1).projects,['DEMO','OTHER'],'projects resolve by key or exact name');assert.equal(elements.get('projects').value,'demo, Platform team');assert.equal(elements.get('project-graphs').children.length,2);
+entry('projects','demo, Platform team');await flush();assert.deepEqual(requests.at(-1).projects,['DEMO','OTHER'],'projects resolve by key or exact name');assert.deepEqual(chipValues('projects'),['DEMO','OTHER'],'every selected project is a chip');assert.equal(elements.get('projects').value,'','the input only holds text being typed');assert.equal(elements.get('project-graphs').children.length,2);
 const beforeRapid=requests.length;change('year','2024');change('year','2025');change('year','2023');await flush();assert.equal(requests.length,beforeRapid+1);assert.equal(requests.at(-1).year,2023);
 holdNext=true;change('year','2024');await flush();const beforeQueued=requests.length;change('year','2025');await flush();assert.equal(requests.length,beforeQueued,'no parallel report request');assert.equal(elements.get('report-panel').hidden,true);
 change('period-select','yearly');finishHeld();await settle();assert.equal(elements.get('report-panel').hidden,true,'old response is not displayed');await flush();assert.equal(requests.at(-1).year,2025);assert.ok(elements.get('report-title').textContent.includes('2025'));assert.match(elements.get('period-heading').textContent,/Yearly/);
-const beforeUnknown=requests.length;change('projects','NOPE');await flush();assert.equal(requests.length,beforeUnknown,'unknown project names do not query Jira');assert.ok(elements.get('query-status').textContent.includes('NOPE'));
-const beforeEmpty=requests.length;change('projects','');await flush();assert.equal(requests.length,beforeEmpty);assert.equal(elements.get('report-panel').hidden,true);
-failure=true;change('projects','OTHER');await flush();assert.ok(elements.get('query-status').textContent.includes('Synthetic failure'));assert.equal(elements.get('report-panel').hidden,true);
+const beforeUnknown=requests.length;entry('projects','NOPE');await flush();assert.equal(requests.length,beforeUnknown,'unknown project names do not query Jira');assert.ok(elements.get('query-status').textContent.includes('NOPE'));
+const beforeEmpty=requests.length;elements.get('projects').value='';vm.runInContext("projectsField.remove('DEMO');projectsField.remove('OTHER')",context);await flush();assert.equal(requests.length,beforeEmpty);assert.equal(elements.get('report-panel').hidden,true);
+failure=true;entry('projects','OTHER');await flush();assert.ok(elements.get('query-status').textContent.includes('Synthetic failure'));assert.equal(elements.get('report-panel').hidden,true);
 failure=false;change('year','2024');await flush();assert.equal(elements.get('report-panel').hidden,false);assert.equal(elements.get('project-graphs').children.length,1);
-const beforeReporter=requests.length;change('reporters',' , ');await flush();assert.equal(requests.length,beforeReporter);assert.equal(elements.get('report-panel').hidden,true);
-change('reporters','박정훈, 김선희 ,박정훈');await flush();assert.deepEqual(requests.at(-1).reporters,['박정훈','김선희'],'comma-separated names are trimmed and de-duplicated');assert.equal(elements.get('report-panel').hidden,false);
-assert.equal(store.get('jira-reporters'),'박정훈, 김선희','reporters are remembered');assert.equal(store.get('jira-year'),'2024','year is remembered');assert.equal(store.get('jira-period'),'yearly','period is remembered');assert.deepEqual(JSON.parse(store.get('jira-projects')),['OTHER'],'projects are remembered');
-change('reporters','박','input');assert.deepEqual(reporterSearches,[],'reporter search is debounced');await flush();assert.deepEqual([...reporterSearches].sort(),['','박'],'typing queries Jira users and loads the base list once');
+const beforeReporter=requests.length;assert.deepEqual(chipValues('reporters'),['sample'],'configured reporter starts as a chip');vm.runInContext("reportersField.remove('sample')",context);await flush();assert.equal(requests.length,beforeReporter);assert.equal(elements.get('report-panel').hidden,true);
+entry('reporters','이민수, 박민호 ,이민수');await flush();assert.deepEqual(requests.at(-1).reporters,['이민수','박민호'],'comma-separated names are trimmed and de-duplicated');assert.equal(elements.get('report-panel').hidden,false);
+assert.deepEqual(JSON.parse(store.get('jira-reporters')).map(chip=>chip.value),['이민수','박민호'],'reporters are remembered with their chip labels');assert.equal(store.get('jira-year'),'2024','year is remembered');assert.equal(store.get('jira-period'),'yearly','period is remembered');assert.deepEqual(JSON.parse(store.get('jira-projects')),['OTHER'],'projects are remembered');
+const searchBase=reporterSearches.length;elements.get('reporters').value='박';for(const fn of elements.get('reporters').handlers.input)fn();assert.equal(reporterSearches.length,searchBase,'reporter search is debounced');await flush();assert.deepEqual(reporterSearches.slice(searchBase).sort(),['','박'],'typing queries Jira users and loads the base list once');
 const completion={key:'Tab',preventDefault(){completion.prevented=true}};for(const fn of elements.get('reporters').handlers.keydown)fn(completion);
-assert.equal(completion.prevented,true);assert.equal(elements.get('reporters').value,'parkjh, ','Tab completes to the real Jira username');await flush();assert.deepEqual(requests.at(-1).reporters,['parkjh'],'completed reporter triggers the report');
+assert.equal(completion.prevented,true);assert.equal(elements.get('reporters').value,'','Tab turns the candidate into a chip');const labels=JSON.parse(vm.runInContext('JSON.stringify(reportersField.values.map(chip=>chip.label))',context));assert.equal(labels.at(-1),'박정훈 (parkjh)','the chip shows both the name and the employee ID');await flush();assert.deepEqual(requests.at(-1).reporters,['이민수','박민호','parkjh'],'completed reporter triggers the report');
+entry('reporters','김선희');await flush();assert.equal(chipValues('reporters').at(-1),'kimsh','a typed name that identifies one Jira user becomes that user chip');assert.equal(JSON.parse(vm.runInContext('JSON.stringify(reportersField.values.map(chip=>chip.label))',context)).at(-1),'김선희 (kimsh)');
 console.log('PASS: dropdown-only automatic load, project/year refresh, local period changes, debounce, serialized requests, stale response rejection, empty selection, and recovery.');
 }
 main().catch(error=>{console.error(error);process.exitCode=1});

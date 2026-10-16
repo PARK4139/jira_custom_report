@@ -11,19 +11,24 @@ const savedPeriod=preference('period','monthly');
 let activePeriod=['1week','2week','monthly','yearly'].includes(savedPeriod)?savedPeriod:'monthly',hasResults=false;
 let projectCatalog=[];
 let loadedProjectReports=[];
-const projectsInput=byId('projects');
-const splitTokens=value=>[...new Set(value.split(/[,，、;\n]/).map(name=>name.trim()).filter(Boolean))];
+const projectsInput=byId('projects'),reportersInput=byId('reporters');
+const projectItem=project=>({value:project.key,label:project.name+' ('+project.key+')'});
+function findProject(text){
+const lower=text.trim().toLowerCase();
+return projectCatalog.find(project=>project.key.toLowerCase()===lower||project.name.toLowerCase()===lower||projectItem(project).label.toLowerCase()===lower);
+}
+// Chips hold resolved project keys; text still waiting in the input that is not a Jira project is reported as unknown.
 function resolveProjects(){
-const keys=[],unknown=[];
-for(const token of splitTokens(projectsInput.value)){
-const lower=token.toLowerCase(),hit=projectCatalog.find(project=>project.key.toLowerCase()===lower)||projectCatalog.find(project=>project.name.toLowerCase()===lower);
-if(hit)keys.push(hit.key);else unknown.push(token);
+const hit=projectsField.pending&&findProject(projectsField.pending);
+return {keys:[...new Set([...projectsField.values.map(chip=>chip.value),...(hit?[hit.key]:[])])],unknown:projectsField.pending&&!hit?[projectsField.pending]:[]};
 }
-return {keys:[...new Set(keys)],unknown};
+const parseReporters=()=>reportersField.values.map(chip=>chip.value);
+// Saved reporters keep the name shown on the chip; older saves were plain comma-separated user IDs.
+function savedReporters(){
+const raw=preference('reporters','');
+try{const value=JSON.parse(raw);if(Array.isArray(value))return value.filter(item=>item&&typeof item.value==='string'&&item.value).map(item=>({value:item.value,label:typeof item.label==='string'&&item.label?item.label:item.value}))}catch{}
+return raw.split(/[,，、;\n]/).map(name=>name.trim()).filter(Boolean).map(name=>({value:name,label:name}));
 }
-const reportersInput=byId('reporters');
-reportersInput.value=preference('reporters','')||config.reporters.join(', ');
-const parseReporters=()=>[...new Set(reportersInput.value.split(/[,，、;\n]/).map(name=>name.trim()).filter(Boolean))];
 async function loadProjects(){
 const select=projectsInput,previous=resolveProjects().keys;
 if(!previous.length)previous.push(...savedList('projects'));
@@ -35,10 +40,10 @@ try{
 const response=await fetch('/api/projects',{method:'POST',headers:{'Content-Type':'application/json','X-Session-Token':config.session},body:'{}'});
 const result=await response.json();if(!response.ok)throw new Error(result.error||'Could not load projects.');
 projectCatalog=result.projects;
-select.value=projectCatalog.filter(project=>previous.includes(project.key)).map(project=>project.key).join(', ');
+projectsField.set(projectCatalog.filter(project=>previous.includes(project.key)).map(projectItem));
 select.disabled=projectCatalog.length===0;
 queryStatus(projectCatalog.length?'projectsReady':'projectsEmpty');
-}catch(error){select.value='';status.className='error';queryStatus('projectsFailed',{},error.message)}
+}catch(error){projectsField.set([]);status.className='error';queryStatus('projectsFailed',{},error.message)}
 if(!select.disabled)scheduleReport();
 }
 for(const tab of byId('period-tabs').children)tab.addEventListener('click',()=>{activePeriod=tab.dataset.period});
@@ -57,13 +62,13 @@ if(unknown.length){invalidateReport();status.className='error';queryStatus('proj
 if(!form.checkValidity()||!projects.length||!reporters.length){invalidateReport();status.className='';queryStatus('idle');return}
 const displayNames=projects.map(key=>{const project=projectCatalog.find(project=>project.key===key);return project.name+' ('+key+')'});
 queryRunning=true;
-remember('year',String(year));remember('projects',JSON.stringify(projects));remember('reporters',reporters.join(', '));remember('period',activePeriod);
+remember('year',String(year));remember('projects',JSON.stringify(projects));remember('reporters',JSON.stringify(reportersField.values));remember('period',activePeriod);
 status.className='';queryStatus('loading',{year});invalidateReport();
 try{
 const response=await fetch('/api/report',{method:'POST',headers:{'Content-Type':'application/json','X-Session-Token':config.session},body:JSON.stringify({year,projects,reporters})});
 const result=await response.json();if(generation!==queryGeneration)return;if(!response.ok)throw new Error(result.error||'Query failed.');
 datasets=result.datasets;loadedProjectReports=result.projectReports||[];
-if(typeof loadedFilters!=='undefined')loadedFilters={year,projects:displayNames,reporters};
+if(typeof loadedFilters!=='undefined')loadedFilters={year,projects:displayNames,reporters:reportersField.values.map(chip=>chip.label)};
 const selectedYear=byId('selected-year');if(selectedYear)selectedYear.textContent=year;
 render(activePeriod);byId('report-panel').hidden=false;byId('period-note').hidden=false;byId('period-controls').hidden=false;
 queryStatus('done',{year,count:result.queryCount,projects:projects.length});hasResults=true;
@@ -73,19 +78,19 @@ finally{queryRunning=false;if(queuedQuery||generation!==queryGeneration){queuedQ
 form.addEventListener('submit',event=>{event.preventDefault();scheduleReport()});
 yearSelect.addEventListener('change',()=>{remember('year',yearSelect.value);scheduleReport()});
 const projectsChanged=()=>{remember('projects',JSON.stringify(resolveProjects().keys));scheduleReport()};
-const reportersChanged=()=>{remember('reporters',reportersInput.value);scheduleReport()};
-projectsInput.addEventListener('change',projectsChanged);
-reportersInput.addEventListener('change',reportersChanged);
+const reportersChanged=()=>{remember('reporters',JSON.stringify(reportersField.values));scheduleReport()};
 const noMatch=query=>query.trim()?t('comboNoMatch'):'';
-attachCombo(projectsInput,{source:()=>projectCatalog.map(project=>({value:project.key,label:project.name+' ('+project.key+')'})),onPick:projectsChanged,limit:10,emptyText:noMatch});
+const projectsField=attachCombo(projectsInput,{source:()=>projectCatalog.map(projectItem),resolve:text=>{const hit=findProject(text);return hit?projectItem(hit):null},onChange:projectsChanged,limit:10,emptyText:noMatch});
 // Jira narrows by the typed text; the unfiltered first page is merged in so skim-style subsequence matches ("ks" -> kimsh) still work.
-const reporterCache=new Map();
+const reporterCache=new Map(),knownUsers=new Map();
+// A typed ID, name, or full label becomes that user's chip only when it identifies exactly one known Jira user.
+const findUser=text=>{const lower=text.trim().toLowerCase(),matches=[...knownUsers.values()].filter(user=>user.value.toLowerCase()===lower||user.label.toLowerCase()===lower||user.name.toLowerCase()===lower);return matches.length===1?matches[0]:null};
 function searchJiraUsers(query){
 const key=query.trim().toLowerCase();
 if(!reporterCache.has(key))reporterCache.set(key,(async()=>{
 const response=await fetch('/api/reporters',{method:'POST',headers:{'Content-Type':'application/json','X-Session-Token':config.session},body:JSON.stringify({query:query.trim()})});
 const result=await response.json();if(!response.ok)throw new Error(result.error||'Reporter search failed.');
-return result.reporters.map(user=>({value:user.name,label:user.displayName===user.name?user.name:user.displayName+' ('+user.name+')'}));
+return result.reporters.map(user=>{const item={value:user.name,name:user.displayName,label:user.displayName===user.name?user.name:user.displayName+' ('+user.name+')'};knownUsers.set(item.value.toLowerCase(),item);return item});
 })().catch(error=>{reporterCache.delete(key);throw error}));
 return reporterCache.get(key);
 }
@@ -94,7 +99,11 @@ const [searched,base]=await Promise.all([query.trim()?searchJiraUsers(query):[],
 const merged=new Map();for(const candidate of [...searched,...base])if(!merged.has(candidate.value))merged.set(candidate.value,candidate);
 return [...merged.values()];
 }
-attachCombo(reportersInput,{source:searchReporters,onPick:reportersChanged,limit:10,delay:200,emptyText:noMatch});
+// Typed text that matches a known Jira user becomes that user's chip; anything else is kept as a raw user ID.
+const reportersField=attachCombo(reportersInput,{source:searchReporters,resolve:text=>{const user=findUser(text);return user?{value:user.value,label:user.label}:null},allowRaw:true,onChange:reportersChanged,limit:10,delay:200,emptyText:noMatch});
+reportersField.set(savedReporters().length?savedReporters():config.reporters.map(name=>({value:name,label:name})));
+// Chips restored from an ID only get their name (이름 (사번)) once Jira confirms the user.
+for(const chip of reportersField.values)if(chip.label===chip.value)searchJiraUsers(chip.value).then(users=>{const user=users.find(item=>item.value.toLowerCase()===chip.value.toLowerCase());if(user){reportersField.relabel(user.value,user.label);remember('reporters',JSON.stringify(reportersField.values))}}).catch(()=>{});
 byId('period-select').value=activePeriod;
 byId('period-select').addEventListener('change',()=>{activePeriod=byId('period-select').value;remember('period',activePeriod);if(hasResults)render(activePeriod);else if(!queryRunning)scheduleReport()});
 byId('download-csv').addEventListener('click',async()=>{

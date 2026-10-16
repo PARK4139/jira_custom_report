@@ -22,8 +22,7 @@ function colorChart(){
 function translateReport(){
  document.documentElement.lang=locale;document.documentElement.dataset.theme=theme;
  document.querySelectorAll('[data-text]').forEach(node=>node.textContent=t(node.dataset.text));
- for(const [id,key] of [['year','year'],['projects','projects'],['reporters','reporters']])byId(id).parentElement.firstChild.textContent=t(key)+' ';
- byId('projects').placeholder=t('projectPlaceholder');byId('reporters').placeholder=t('reporterPlaceholder');
+ for(const [id,key] of [['year','year'],['projects','projects'],['reporters','reporters']])byId(id+'-label').textContent=t(key);
  byId('download-csv').textContent=t('csv');byId('download-jpg').textContent=t('jpg');
  const themeButton=byId('theme');themeButton.textContent=t(theme);themeButton.setAttribute('aria-pressed',String(theme==='dark'));themeButton.setAttribute('aria-label',t('theme')+': '+t(theme));
  byId('footer-text').textContent=t('footer');

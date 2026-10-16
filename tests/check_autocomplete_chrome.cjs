@@ -50,67 +50,94 @@ async function main() {
     await send('Page.enable'); await send('Runtime.enable'); await send('Network.enable');
     await send('Page.navigate', {url: origin});
     await waitFor(() => evaluate("typeof hasResults!=='undefined' && document.getElementById('projects').disabled===false && !document.getElementById('report-panel').hidden"), 'initial report');
-    assert.equal(await evaluate("document.getElementById('projects').value"), 'DEMO');
-    assert.equal(await evaluate("document.getElementById('reporters').value"), 'sample');
+    const chips = id => evaluate(`[...document.getElementById('${id}').parentElement.querySelectorAll('.chip-label')].map(node=>node.textContent)`);
+    const placeholder = id => evaluate(`document.getElementById('${id}').placeholder`);
+    const removeChip = async (id, index) => { const spot = await evaluate(`(()=>{const r=document.getElementById('${id}').parentElement.querySelectorAll('.chip-remove')[${index}].getBoundingClientRect();return [r.x+r.width/2,r.y+r.height/2]})()`); for (const kind of ['mousePressed', 'mouseReleased']) await send('Input.dispatchMouseEvent', {type: kind, x: spot[0], y: spot[1], button: 'left', clickCount: 1}); };
+    const hint = async id => (await listTexts(id)).join();
 
-    // Reporters: click lists Jira candidates; typing Korean searches Jira; Tab completes to the username.
-    await evaluate("document.getElementById('reporters').value=''");
+    // Selected values are chips; the input stays empty and the placeholder only shows when there are no chips.
+    assert.deepEqual(await chips('projects'), ['Demo team (DEMO)']);
+    await waitFor(async () => (await chips('reporters')).join() === 'Sample User (sample)', 'reporter chip shows name and ID once Jira resolves it');
+    assert.equal(await evaluate("document.getElementById('projects').value"), '');
+    assert.equal(await placeholder('projects'), '', 'placeholder is hidden while chips exist');
+    await removeChip('reporters', 0);
+    assert.deepEqual(await chips('reporters'), []);
+    assert.equal(await placeholder('reporters'), 'ctrl space + tab', 'placeholder is exactly "ctrl space + tab"');
+    assert.equal(await placeholder('projects'), '', 'projects still has a chip');
+
+    // Reporters: click lists Jira candidates; typing Korean searches Jira; Tab turns it into a chip with name and ID.
     await clickField('reporters');
     await waitFor(async () => (await listTexts('reporters')).length === 4, 'reporter candidates on click');
     assert.deepEqual((await listTexts('reporters')).sort(), ['Fail User (fail)', 'Sample User (sample)', '김선희 (kimsh)', '박정훈 (parkjh)'].sort());
     await type('정훈');
-    await waitFor(async () => (await listTexts('reporters')).join() === '박정훈 (parkjh)', 'filtered Korean candidate');
+    await waitFor(async () => (await hint('reporters')) === '박정훈 (parkjh)', 'filtered Korean candidate');
     assert.ok(reporterQueries.includes('정훈'), 'typed text was sent to Jira as the search query');
     await key('Tab', 'Tab', 9);
-    assert.equal(await evaluate("document.getElementById('reporters').value"), 'parkjh, ');
+    assert.deepEqual(await chips('reporters'), ['박정훈 (parkjh)'], 'the chip shows the name and the employee ID');
+    assert.equal(await evaluate("document.getElementById('reporters').value"), '');
     assert.equal(await evaluate("document.activeElement.id"), 'reporters', 'Tab completes without leaving the field');
     assert.equal(await evaluate("document.getElementById('reporters').parentElement.querySelector('.combo-list').hidden"), true);
     await waitFor(() => reportBodies.at(-1)?.reporters?.join() === 'parkjh', 'report for the completed reporter');
 
-    // Second reporter: multi-value field keeps the first token; skim-style subsequence match ("ks" -> kimsh).
+    // Second reporter: skim-style subsequence match ("ks" -> kimsh); Backspace on an empty input removes the last chip.
     await type('ks');
-    await waitFor(async () => (await listTexts('reporters')).join() === '김선희 (kimsh)', 'subsequence candidate');
+    await waitFor(async () => (await hint('reporters')) === '김선희 (kimsh)', 'subsequence candidate');
     await key('Tab', 'Tab', 9);
-    assert.equal(await evaluate("document.getElementById('reporters').value"), 'parkjh, kimsh, ');
+    assert.deepEqual(await chips('reporters'), ['박정훈 (parkjh)', '김선희 (kimsh)']);
     await waitFor(() => reportBodies.at(-1)?.reporters?.join() === 'parkjh,kimsh', 'report for both reporters');
+    await key('Backspace', 'Backspace', 8);
+    assert.deepEqual(await chips('reporters'), ['박정훈 (parkjh)'], 'Backspace removes the last chip');
+    await waitFor(() => reportBodies.at(-1)?.reporters?.join() === 'parkjh', 'report after removing a reporter');
 
-    // Projects: click lists the Jira catalog; typing narrows; arrows + Enter also select; screenshot the open list.
-    await evaluate("document.getElementById('projects').value=''");
+    // Free text becomes a chip too: a typed name that identifies one Jira user becomes that user, an unknown ID is kept as typed.
+    await type('김선희'); await key('Enter', 'Enter', 13);
+    assert.deepEqual(await chips('reporters'), ['박정훈 (parkjh)', '김선희 (kimsh)'], 'a typed name resolves to the Jira user');
+    await type('e1234,');
+    assert.deepEqual(await chips('reporters'), ['박정훈 (parkjh)', '김선희 (kimsh)', 'e1234'], 'a comma commits an unknown ID as a chip');
+    await removeChip('reporters', 2);
+
+    // Projects: replace the chip; click lists the Jira catalog; typing narrows; arrows + Enter also select.
+    await removeChip('projects', 0);
+    assert.deepEqual(await chips('projects'), []);
+    assert.equal(await placeholder('projects'), 'ctrl space + tab');
     await clickField('projects');
     await waitFor(async () => (await listTexts('projects')).length === 3, 'project candidates on click');
     await type('hot');
-    await waitFor(async () => (await listTexts('projects')).join() === 'Hotel group (HTG)', 'filtered project');
+    await waitFor(async () => (await hint('projects')) === 'Hotel group (HTG)', 'filtered project');
     const shot = await send('Page.captureScreenshot', {format: 'png'});
     await fs.writeFile(path.join(output, 'autocomplete-open.png'), Buffer.from(shot.data, 'base64'));
     await key('Tab', 'Tab', 9);
-    assert.equal(await evaluate("document.getElementById('projects').value"), 'HTG, ');
+    assert.deepEqual(await chips('projects'), ['Hotel group (HTG)']);
     await type('p');
-    await waitFor(async () => (await listTexts('projects')).join() === 'Platform team (OTHER)', 'second project candidate');
+    await waitFor(async () => (await hint('projects')) === 'Platform team (OTHER)', 'second project candidate');
     await key('ArrowDown', 'ArrowDown', 40); await key('Enter', 'Enter', 13);
-    assert.equal(await evaluate("document.getElementById('projects').value"), 'HTG, OTHER, ');
+    assert.deepEqual(await chips('projects'), ['Hotel group (HTG)', 'Platform team (OTHER)']);
     await waitFor(() => reportBodies.at(-1)?.projects?.join() === 'HTG,OTHER', 'report for both projects');
+    const filled = await send('Page.captureScreenshot', {format: 'png'});
+    await fs.writeFile(path.join(output, 'autocomplete-chips.png'), Buffer.from(filled.data, 'base64'));
 
-    // Ctrl+Space shows the candidates again after Escape.
-    await evaluate("document.getElementById('projects').value='HTG, '"); await clickField('projects');
-    await waitFor(async () => (await listTexts('projects')).length === 2, 'candidates after click');
+    // Ctrl+Space shows the candidates again after Escape and does not type a space.
+    await clickField('projects');
+    await waitFor(async () => (await listTexts('projects')).length === 1, 'candidates after click');
     await key('Escape', 'Escape', 27);
     assert.equal(await evaluate("document.getElementById('projects').parentElement.querySelector('.combo-list').hidden"), true);
     await send('Input.dispatchKeyEvent', {type: 'rawKeyDown', key: ' ', code: 'Space', windowsVirtualKeyCode: 32, modifiers: 2});
     await send('Input.dispatchKeyEvent', {type: 'keyUp', key: ' ', code: 'Space', windowsVirtualKeyCode: 32, modifiers: 2});
-    await waitFor(async () => (await listTexts('projects')).length === 2, 'Ctrl+Space reopens candidates');
-    assert.equal(await evaluate("document.getElementById('projects').value"), 'HTG, ', 'Ctrl+Space does not type a space');
+    await waitFor(async () => (await listTexts('projects')).length === 1, 'Ctrl+Space reopens candidates');
+    assert.equal(await evaluate("document.getElementById('projects').value"), '', 'Ctrl+Space does not type a space');
 
-    // Unknown project text is reported instead of being silently dropped; Escape closes the list.
-    await evaluate("document.getElementById('projects').value='NOPE'");
-    await evaluate("document.getElementById('projects').dispatchEvent(new Event('change',{bubbles:true}))");
+    // A project that is not in Jira's catalog is reported instead of becoming a chip; Escape closes the hint.
+    await type('NOPE'); await key('Enter', 'Enter', 13);
+    assert.deepEqual(await chips('projects'), ['Hotel group (HTG)', 'Platform team (OTHER)'], 'unknown text is not a chip');
+    assert.equal(await evaluate("document.getElementById('projects').value"), 'NOPE');
     await waitFor(() => evaluate("document.getElementById('query-status').textContent.includes('NOPE')"), 'unknown project message');
     await clickField('projects');
-    await waitFor(async () => (await listTexts('projects')).join() === 'No matching Jira candidates' || (await listTexts('projects')).join() === '일치하는 Jira 후보가 없습니다', 'no-match hint');
+    await waitFor(async () => ['No matching Jira candidates', '일치하는 Jira 후보가 없습니다'].includes(await hint('projects')), 'no-match hint');
     await key('Escape', 'Escape', 27);
     assert.equal(await evaluate("document.getElementById('projects').parentElement.querySelector('.combo-list').hidden"), true);
 
     assert.deepEqual(exceptions, []);
-    console.log('PASS: actual Chrome, click lists Jira candidates, typing queries Jira, skim-style matching, Tab/Enter completion for multi-value project and reporter fields.');
+    console.log('PASS: actual Chrome, click lists Jira candidates, typing queries Jira, skim-style matching, chips with name and ID for every selected project and reporter, Tab/Enter completion, Backspace/x removal, and Ctrl+Space.');
     try { await send('Browser.close'); } catch {}
   } finally { client?.close(); chrome?.kill(); fixture.kill(); }
 }
