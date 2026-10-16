@@ -15,7 +15,7 @@ from jira_dashboard_ui import dashboard_html
 from jira_inputs import load_inputs, save_inputs
 from jira_issue_monthly import TZ
 from jira_paths import D_OUTPUTS
-from jira_projects import fetch_projects
+from jira_projects import fetch_project, fetch_projects
 from jira_reporters import search_reporters
 from jira_settings import Settings
 
@@ -98,7 +98,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
         if self.path == '/api/output':
             self.save_output()
             return
-        if self.path not in ('/api/report', '/api/projects', '/api/reporters', '/api/inputs', '/api/shutdown'):
+        if self.path not in ('/api/report', '/api/projects', '/api/project', '/api/reporters', '/api/inputs', '/api/shutdown'):
             self.discard_body()
             self.respond(404, {'error': 'Not found.'})
             return
@@ -125,6 +125,22 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 else:
                     self.server.project_names = {project['key']: project['name'] for project in projects}
                     self.respond(200, {'projects': projects})
+                return
+            if self.path == '/api/project':
+                if not isinstance(payload, dict) or set(payload) != {'key'}:
+                    raise ValueError
+                try:
+                    project = fetch_project(self.server.credentials, payload['key'])
+                except ValueError:
+                    self.respond(400, {'error': 'Enter a valid Jira project key.'})
+                except RuntimeError as error:
+                    self.respond(404 if str(error).startswith('Jira HTTP 404') else 502,
+                                 {'error': 'Project not found.' if str(error).startswith('Jira HTTP 404') else str(error)})
+                except Exception:
+                    self.respond(500, {'error': 'Could not look up the Jira project. Try again.'})
+                else:
+                    self.server.project_names[project['key']] = project['name']
+                    self.respond(200, project)
                 return
             if self.path == '/api/inputs':
                 if not isinstance(payload, dict) or set(payload) != {'values'}:

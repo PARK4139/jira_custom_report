@@ -9,6 +9,35 @@ import jira_issue_monthly as report
 import jira_projects as web
 
 
+class ProjectLookupTests(unittest.TestCase):
+    def lookup(self, payload, key='LHUB'):
+        credentials = Credentials('https://jira.internal:8443/jira', 'sample', 'synthetic-secret')
+        response = Mock()
+        response.__enter__ = Mock(return_value=io.BytesIO(json.dumps(payload).encode()))
+        response.__exit__ = Mock(return_value=False)
+        opener = Mock()
+        opener.open.return_value = response
+        with patch.object(report, 'build_opener', return_value=opener), patch.object(report, 'record_event'):
+            result = web.fetch_project(credentials, key)
+        return result, opener.open.call_args.args[0]
+
+    def test_lookup_by_key_returns_only_key_and_name(self):
+        result, request = self.lookup({'key': 'LHUB', 'name': 'L-HUB', 'lead': {'emailAddress': 'private@example.com'}})
+        self.assertEqual(result, {'key': 'LHUB', 'name': 'L-HUB'})
+        self.assertEqual(request.full_url, 'https://jira.internal:8443/jira/rest/api/2/project/LHUB')
+        self.assertEqual(request.get_method(), 'GET')
+
+    def test_unsafe_keys_never_reach_jira_and_invalid_answers_fail(self):
+        credentials = Credentials('https://jira.internal', 'sample', 'synthetic-secret')
+        for key in ('', 'A/../B', 'A B', 'A?x=1', 'A#', 'x' * 51, None, 5):
+            with self.subTest(key=key), patch.object(web, 'request_json') as send, self.assertRaises(ValueError):
+                web.fetch_project(credentials, key)
+            send.assert_not_called()
+        for payload in ({}, {'key': 'A" OR project=B', 'name': 'Bad'}, {'key': 'A', 'name': ''}):
+            with self.subTest(payload=payload), patch.object(web, 'request_json', return_value=payload), self.assertRaises(RuntimeError):
+                web.fetch_project(credentials, 'A')
+
+
 class ProjectListTests(unittest.TestCase):
     def test_on_prem_project_list_preserves_keys_and_returns_only_names(self):
         credentials = Credentials('https://jira.internal:8443/jira', 'sample', 'synthetic-secret')

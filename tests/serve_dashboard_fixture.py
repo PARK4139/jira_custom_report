@@ -13,6 +13,12 @@ USERS = [{"name": "sample", "displayName": "Sample User"}, {"name": "fail", "dis
          {"name": "parkjh", "displayName": "박정훈"}, {"name": "kimsh", "displayName": "김선희"}]
 
 
+def find_project(credentials, key):
+    if key == "LHUB":
+        return {"key": "LHUB", "name": "L-HUB"}
+    raise RuntimeError("Jira HTTP 404: Request rejected")
+
+
 def search_users(credentials, query):
     needle = query.strip().casefold()
     return [user for user in USERS if needle in user["name"].casefold() or needle in user["displayName"].casefold()]
@@ -38,6 +44,7 @@ if __name__ == "__main__":
             "jira_dashboard_server.fetch_projects", return_value=[
                 {"key": "DEMO", "name": "Demo team"}, {"key": "HTG", "name": "Hotel group"},
                 {"key": "OTHER", "name": "Platform team"}]), patch(
+            "jira_dashboard_server.fetch_project", side_effect=find_project), patch(
             "jira_dashboard_server.search_reporters", side_effect=search_users), DashboardServer(
             Credentials("https://jira.invalid", "synthetic-user", "synthetic-secret"),
             ["DEMO"], ["sample"], port=args.port) as server:

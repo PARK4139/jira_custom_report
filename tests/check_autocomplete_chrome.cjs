@@ -138,6 +138,20 @@ async function main() {
     await key('Escape', 'Escape', 27);
     assert.equal(await evaluate("document.getElementById('projects').parentElement.querySelector('.combo-list').hidden"), true);
 
+    // A project that Jira's list omits can still be found by typing its key (the fixture's list has 3 projects; LHUB is only a lookup).
+    const projectLabel = () => evaluate("document.getElementById('projects-label').textContent");
+    assert.match(await projectLabel(), /\(3\)/, 'the number of projects Jira listed is shown next to the label');
+    await evaluate("document.getElementById('projects').value=''");
+    await clickField('projects');
+    await type('lhub');
+    await waitFor(async () => (await hint('projects')) === 'L-HUB (LHUB)', 'project found by key although the list omits it');
+    await key('Tab', 'Tab', 9);
+    assert.deepEqual(await chips('projects'), ['Hotel group (HTG)', 'Platform team (OTHER)', 'L-HUB (LHUB)']);
+    await waitFor(() => reportBodies.at(-1)?.projects?.join() === 'HTG,OTHER,LHUB', 'report includes the looked-up project');
+    assert.match(await projectLabel(), /\(4\)/, 'the looked-up project joins the catalog');
+    await removeChip('projects', 2);
+    await waitFor(() => reportBodies.at(-1)?.projects?.join() === 'HTG,OTHER', 'report after removing the looked-up project');
+
     // Persistence: every input is mirrored to the git-ignored file, and a restart on another port (new origin, empty localStorage) restores it.
     await waitFor(async () => { try { const saved = JSON.parse(await fs.readFile(inputsFile, 'utf8')); return saved.projects === '["HTG","OTHER"]' && JSON.parse(saved.reporters).length === 2; } catch { return false; } }, 'inputs saved to disk');
     const saved = JSON.parse(await fs.readFile(inputsFile, 'utf8'));

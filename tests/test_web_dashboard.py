@@ -103,6 +103,29 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(code, 500)
         self.assertNotIn(self.credentials.token, body)
 
+    def test_project_lookup_endpoint_requires_session_maps_404_and_hides_raw_errors(self):
+        project = {'key': 'LHUB', 'name': 'L-HUB'}
+        with patch.object(web, 'fetch_project', return_value=project) as fetch:
+            code, _, body = self.request({'key': 'LHUB'}, path='/api/project')
+            self.assertEqual((code, json.loads(body)), (200, project))
+            fetch.assert_called_once_with(self.server.credentials, 'LHUB')
+            self.assertEqual(self.server.project_names['LHUB'], 'L-HUB', 'the report uses the looked-up name')
+            self.assertEqual(self.request({'key': 'LHUB'}, path='/api/project', **{'X-Session-Token': 'bad'})[0], 403)
+            for payload in ({}, {'key': 'A', 'x': 1}, []):
+                self.assertEqual(self.request(payload, path='/api/project')[0], 400)
+            self.assertEqual(fetch.call_count, 1)
+        with patch.object(web, 'fetch_project', side_effect=ValueError('bad')):
+            self.assertEqual(self.request({'key': 'A/B'}, path='/api/project')[0], 400)
+        with patch.object(web, 'fetch_project', side_effect=RuntimeError('Jira HTTP 404: Request rejected')):
+            code, _, body = self.request({'key': 'NOPE'}, path='/api/project')
+            self.assertEqual((code, json.loads(body)), (404, {'error': 'Project not found.'}))
+        with patch.object(web, 'fetch_project', side_effect=RuntimeError('Jira HTTP 403: Check account project permissions')):
+            self.assertEqual(self.request({'key': 'NOPE'}, path='/api/project')[0], 502)
+        with patch.object(web, 'fetch_project', side_effect=OSError(self.credentials.token)):
+            code, _, body = self.request({'key': 'NOPE'}, path='/api/project')
+        self.assertEqual(code, 500)
+        self.assertNotIn(self.credentials.token, body)
+
     SAVED = {'year': '2024', 'period': 'yearly', 'locale': 'en', 'theme': 'dark',
              'projects': '["OTHER"]', 'reporters': '[{"value": "parkjh", "label": "박정훈 (parkjh)"}]'}
 

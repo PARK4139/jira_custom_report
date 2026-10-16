@@ -14,6 +14,7 @@ let activePeriod=['1week','2week','monthly','yearly'].includes(savedPeriod)?save
 let projectCatalog=[];
 let loadedProjectReports=[];
 const projectsInput=byId('projects'),reportersInput=byId('reporters');
+const showProjectCount=()=>{byId('projects-label').textContent=t('projects')+(projectCatalog.length?' ('+projectCatalog.length+')':'')};
 const projectItem=project=>({value:project.key,label:project.name+' ('+project.key+')'});
 function findProject(text){
 const lower=text.trim().toLowerCase();
@@ -42,7 +43,7 @@ try{
 const response=await fetch('/api/projects',{method:'POST',headers:{'Content-Type':'application/json','X-Session-Token':config.session},body:'{}'});
 const result=await response.json();if(!response.ok)throw new Error(result.error||'Could not load projects.');
 projectCatalog=result.projects;
-projectsField.set(projectCatalog.filter(project=>previous.includes(project.key)).map(projectItem));
+showProjectCount();projectsField.set(projectCatalog.filter(project=>previous.includes(project.key)).map(projectItem));
 select.disabled=projectCatalog.length===0;
 queryStatus(projectCatalog.length?'projectsReady':'projectsEmpty');
 }catch(error){projectsField.set([]);status.className='error';queryStatus('projectsFailed',{},error.message)}
@@ -82,7 +83,24 @@ yearSelect.addEventListener('change',()=>{remember('year',yearSelect.value);sche
 const projectsChanged=()=>{remember('projects',JSON.stringify(resolveProjects().keys));scheduleReport()};
 const reportersChanged=()=>{remember('reporters',JSON.stringify(reportersField.values));scheduleReport()};
 const noMatch=query=>query.trim()?t('comboNoMatch'):'';
-const projectsField=attachCombo(projectsInput,{source:()=>projectCatalog.map(projectItem),resolve:text=>{const hit=findProject(text);return hit?projectItem(hit):null},onChange:projectsChanged,limit:10,emptyText:noMatch});
+// Jira's project list can omit projects the account may still query by key (typing the key used to be the only way).
+// When typed text matches nothing in the list, look it up by key and add it to the catalog.
+const projectLookups=new Map();
+function lookupProject(text){
+const key=text.trim(),lower=key.toLowerCase();
+if(!/^[A-Za-z0-9_-]{1,50}$/.test(key)||projectCatalog.some(project=>project.key.toLowerCase().includes(lower)||project.name.toLowerCase().includes(lower)))return Promise.resolve(null);
+if(!projectLookups.has(lower))projectLookups.set(lower,(async()=>{
+try{
+const response=await fetch('/api/project',{method:'POST',headers:{'Content-Type':'application/json','X-Session-Token':config.session},body:JSON.stringify({key:key.toUpperCase()})});
+if(!response.ok)return null;
+const project=await response.json();
+if(!projectCatalog.some(known=>known.key===project.key)){projectCatalog.push(project);showProjectCount()}
+return project;
+}catch{return null}
+})());
+return projectLookups.get(lower);
+}
+const projectsField=attachCombo(projectsInput,{source:async token=>{if(token)await lookupProject(token);return projectCatalog.map(projectItem)},resolve:text=>{const hit=findProject(text);return hit?projectItem(hit):null},onChange:projectsChanged,limit:50,delay:250,emptyText:noMatch});
 // Jira narrows by the typed text; the unfiltered first page is merged in so skim-style subsequence matches ("ks" -> kimsh) still work.
 const reporterCache=new Map(),knownUsers=new Map();
 // A typed ID, name, or full label becomes that user's chip only when it identifies exactly one known Jira user.
