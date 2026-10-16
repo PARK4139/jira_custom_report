@@ -14,7 +14,7 @@ let theme=preference('theme','light');
 if(!['light','dark'].includes(theme))theme='light';
 let statusKey='idle',statusValues={},statusError='',loadedFilters=null;
 function t(key,values={}){return Object.entries(values).reduce((text,[key,value])=>text.replaceAll('{'+key+'}',String(value)),messages[locale][key]||key)}
-function setStatus(key,values={},error=''){statusKey=key;statusValues=values;statusError=error;status.textContent=t(key,values)+(error?' '+error:'')}
+function setStatus(key,values={},error=''){statusKey=key;statusValues=values;statusError=error;status.textContent=(key==='done'||key==='loading'?'':t(key,values))+(error?' '+error:'')}
 let inputSyncTimer;
 function remember(key,value){try{localStorage.setItem('jira-'+key,value)}catch{}clearTimeout(inputSyncTimer);inputSyncTimer=setTimeout(syncInputs,400)}
 async function syncInputs(){

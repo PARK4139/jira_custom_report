@@ -56,7 +56,7 @@ let queryGeneration=0,queryRunning=false,queuedQuery=false,queryTimer;
 function invalidateReport(){hasResults=false;byId('period-note').hidden=true;byId('report-panel').hidden=true;byId('period-tabs').hidden=true;byId('period-controls').hidden=true}
 function queryStatus(key,values={},error=''){
 if(typeof setStatus==='function'){setStatus(key,values,error);return}
-status.textContent=key==='loading'?'Loading Jira results for '+values.year+'...':key==='done'?values.year+': '+values.count+' Jira request(s) completed.':key==='failed'?'Jira query failed. '+error:'Choose a project and enter reporters to load results automatically.';
+status.textContent=key==='loading'||key==='done'?'':key==='failed'?'Jira query failed. '+error:'Choose a project and enter reporters to load results automatically.';
 }
 function scheduleReport(){queryGeneration++;invalidateReport();clearTimeout(queryTimer);queryTimer=setTimeout(loadReport,250)}
 async function loadReport(){
