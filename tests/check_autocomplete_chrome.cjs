@@ -104,6 +104,14 @@ async function main() {
     assert.equal(await placeholder('projects'), 'ctrl space + tab');
     await clickField('projects');
     await waitFor(async () => (await listTexts('projects')).length === 3, 'project candidates on click');
+    // With the list open, ArrowDown then Ctrl+Space (twice) must not send the highlight back to the top.
+    const activeIndex = () => evaluate("[...document.getElementById('projects').parentElement.querySelectorAll('.combo-list li')].findIndex(li=>li.className==='active')");
+    await key('ArrowDown', 'ArrowDown', 40); await key('ArrowDown', 'ArrowDown', 40);
+    assert.equal(await activeIndex(), 2);
+    for (let i = 0; i < 2; i++) { await send('Input.dispatchKeyEvent', {type: 'rawKeyDown', key: ' ', code: 'Space', windowsVirtualKeyCode: 32, modifiers: 2}); await send('Input.dispatchKeyEvent', {type: 'keyUp', key: ' ', code: 'Space', windowsVirtualKeyCode: 32, modifiers: 2}); }
+    await delay(300);
+    assert.equal(await activeIndex(), 2, 'Ctrl+Space twice keeps the highlighted candidate');
+    await evaluate("document.getElementById('projects').value=''");
     await type('hot');
     await waitFor(async () => (await hint('projects')) === 'Hotel group (HTG)', 'filtered project');
     const shot = await send('Page.captureScreenshot', {format: 'png'});

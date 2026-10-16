@@ -122,6 +122,18 @@ async function main() {
   same(texts(h.list), ['Quality team (DEMO)', 'Hotel group (HTG)'], 'Ctrl+Space after completion lists the remaining candidates');
   assert.equal(fire(h.input, 'keydown', { key: ' ', code: 'Space' }).prevented, undefined, 'plain Space still types a space');
 
+  // Ctrl+Space on a list that is already open leaves the highlighted candidate where it is (no jump back to the top).
+  const k = field(() => projects);
+  fire(k.input, 'focus'); await settle();
+  fire(k.input, 'keydown', { key: 'ArrowDown' }); fire(k.input, 'keydown', { key: 'ArrowDown' });
+  assert.equal(k.list.children[2].className, 'active');
+  const stay = fire(k.input, 'keydown', { key: ' ', code: 'Space', ctrlKey: true }); await settle();
+  assert.equal(stay.prevented, true, 'Ctrl+Space never types a space');
+  assert.equal(k.list.children[2].className, 'active', 'the third candidate stays highlighted after Ctrl+Space');
+  fire(k.input, 'keydown', { key: ' ', code: 'Space', ctrlKey: true }); await settle();
+  assert.equal(k.list.children[2].className, 'active', 'pressing it twice still keeps the position');
+  assert.equal(fire(k.input, 'keydown', { key: 'Enter' }).prevented, true); same(k.combo.values.map(chip => chip.value), ['HTG'], 'Enter picks the candidate that was highlighted');
+
   // Tab with nothing typed moves focus normally; arrows then Enter select without typing.
   const b = field(() => projects);
   fire(b.input, 'focus'); await settle();

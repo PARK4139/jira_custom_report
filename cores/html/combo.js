@@ -121,7 +121,7 @@ refresh();
 input.addEventListener('blur',()=>{commitPending();close()});
 input.addEventListener('keydown',event=>{
 const open=!list.hidden&&shown.length>0,token=input.value.trim();
-if((event.ctrlKey||event.metaKey)&&(event.key===' '||event.code==='Space')){event.preventDefault();navigated=false;refresh()}
+if((event.ctrlKey||event.metaKey)&&(event.key===' '||event.code==='Space')){event.preventDefault();if(!open){navigated=false;refresh()}}
 else if(event.key==='ArrowDown'){if(open){event.preventDefault();move(1)}else refresh()}
 else if(event.key==='ArrowUp'){if(open){event.preventDefault();move(-1)}}
 else if(event.key==='Tab'&&!event.shiftKey&&open&&(token||navigated)){event.preventDefault();pick(active)}
