@@ -49,6 +49,18 @@ The final bucket ends January 1 of the following year. These are calendar-year b
 
 The dashboard fetches each report with one paged Jira search and counts every period locally. The offline CLI queries per bucket: for 2026 its default periods (1week, monthly, yearly) have 53 + 12 + 1 buckets, **132 JQL queries per project**, plus pagination requests; `--periods quarterly daily` adds 8 and 730 queries. Requests run sequentially and can take several minutes. Changing the period dropdown uses loaded data without a network request. Changing the year, projects, or reporters automatically fetches new data. Valid initial defaults load after the project list is ready. Rapid changes are coalesced, requests are serialized, and outdated responses are discarded. Only one report query runs at a time. A failed query hides prior results rather than showing them under the wrong filters.
 
+## Demo (no Jira, no login)
+
+`demo.cmd` starts the same dashboard with built-in dummy data and opens it in the browser. It does not ask for a Jira URL, user ID, or password, and it never contacts Jira. Use it to show the screen on a machine without Jira access.
+
+```text
+demo.cmd              start the demo and open the browser
+demo.cmd --no-open    print the URL only
+demo.cmd --port 8765  use a fixed local port
+```
+
+Only the Jira calls are replaced: the project list (12 fictional projects), the reporter search (8 fictional users), and the year's issues (generated deterministically per year and project, never dated in the future). The page, filters, autocomplete, chips, every period, charts, CSV and JPG exports, and saved inputs are the real code. Demo inputs are saved to `.local/demo-inputs.json` (git-ignored) and never overwrite the real `.local/inputs.json`. Press Ctrl+C in the terminal to stop.
+
 ## Authentication and transport
 
 The specified server must allow Basic authentication with the Jira user ID and password. SSO-only deployments require a different authentication integration. Both http:// and https:// URLs are accepted without an extra flag; custom ports and context paths such as `/jira` are supported. Configure your environment to trust internal certificate authorities. TLS certificate validation and redirect blocking remain enabled.
@@ -93,6 +105,7 @@ Application source and generated artifacts are separated:
 | `cores/python/jira_projects.py` | Jira project catalog retrieval and validation |
 | `cores/python/jira_reporters.py` | Jira user lookup for reporter autocomplete |
 | `cores/python/jira_inputs.py` | Validated, git-ignored `.local/inputs.json` copy of the saved dashboard inputs |
+| `cores/python/jira_demo.py` | Demo mode: the dashboard on dummy data without Jira (`demo.cmd`) |
 | `cores/html/combo.js` | Fuzzy candidate list and Tab completion shared by the project and reporter fields |
 | `cores/python/jira_dashboard_ui.py` | Dashboard composition and escaped browser configuration |
 | `cores/python/jira_report_view.py` | Offline report rendering |

@@ -15,6 +15,7 @@ dependencies = [
 
 [project.scripts]
 jira-report = "launch_report:launch"
+jira-demo = "jira_demo:main"
 
 [tool.uv]
 package = true
@@ -22,7 +23,7 @@ required-version = ">=0.8"
 
 [tool.setuptools]
 package-dir = {"" = "cores/python", "cores" = "cores", "cores.html" = "cores/html"}
-py-modules = ["jira_issue_monthly", "jira_web", "jira_dashboard_lifecycle", "jira_dashboard_cli", "jira_dashboard_server", "jira_dashboard_service", "jira_dashboard_ui", "jira_report_view", "jira_projects", "jira_reporters", "jira_inputs", "jira_year_search", "jira_periods", "jira_credentials", "jira_paths", "jira_audit", "jira_jql_log", "jira_settings", "launch_report"]
+py-modules = ["jira_issue_monthly", "jira_web", "jira_dashboard_lifecycle", "jira_dashboard_cli", "jira_dashboard_server", "jira_dashboard_service", "jira_dashboard_ui", "jira_report_view", "jira_projects", "jira_reporters", "jira_inputs", "jira_year_search", "jira_periods", "jira_credentials", "jira_paths", "jira_audit", "jira_jql_log", "jira_settings", "launch_report", "jira_demo"]
 packages = ["cores", "cores.html"]
 
 [tool.setuptools.package-data]
