@@ -71,7 +71,18 @@ Search requests go directly to the configured server's `/rest/api/2/search` endp
 
 The dashboard binds exclusively to **127.0.0.1**. Its local HTTP traffic contains aggregate results and filters; the Jira password is kept only in Python server memory and sent to the specified Jira URL (HTTP is unencrypted; HTTPS remains certificate-validated). Browser requests are checked against the expected Host, Origin, and a session request token. Responses disable caching and framing. The server does not provide a filesystem browser, arbitrary Jira proxy, or a public network listener.
 
-Passwords are never placed in browser HTML, JavaScript, API responses, files, command arguments, or logs. Hidden input fails if the terminal cannot support it. No `.env` files or `JIRA_*` environment variables are loaded. Existing Windows Credential Manager entries are not used by this web flow.
+Passwords are never placed in browser HTML, JavaScript, API responses, files, command arguments, or logs. Hidden input fails if the terminal cannot support it. No `.env` files or `JIRA_*` environment variables are loaded. Existing Windows Credential Manager entries of the report CLI are not used by this web flow; the dashboard's own opt-in **Auto login** entry is described below.
+
+### Auto login (opt-in)
+
+By default the password is typed once per launch and kept only in the running server's memory. The **Auto login** button in the top bar, to the right of the theme (화면 모드) button, changes that on request:
+
+- Turning it **on** asks for confirmation, then saves the current Jira URL, user ID, and password in **Windows Credential Manager** (entry `jira-custom-report` / `dashboard-<profile>`, separate from the CLI's saved passwords). Nothing is saved before you turn it on, and the password is never written to a file, the browser, or a log.
+- The next `run.cmd` starts without a prompt and prints which login it uses. The saved login is only used for the server and user it was saved with: giving another `--url` or `--id` on the command line asks for a password instead. `--no-auto-login` asks for the password once and keeps the saved login.
+- Turning it **off** deletes the saved login. If Windows Credential Manager is not available, the button reports the error and stays off.
+- A saved login for a plain `http://` server keeps its explicit opt-in and still prints the unencrypted-connection warning.
+- `demo.cmd` shows the same button but keeps its state only in memory.
+
 
 ## Files and validation
 
@@ -106,6 +117,7 @@ Application source and generated artifacts are separated:
 | `cores/python/jira_reporters.py` | Jira user lookup for reporter autocomplete |
 | `cores/python/jira_inputs.py` | Validated, git-ignored `.local/inputs.json` copy of the saved dashboard inputs |
 | `cores/python/jira_demo.py` | Demo mode: the dashboard on dummy data without Jira (`demo.cmd`) |
+| `cores/python/jira_autologin.py` | Opt-in Auto login store (Windows Credential Manager), used by the launcher and the dashboard button |
 | `cores/html/combo.js` | Fuzzy candidate list and Tab completion shared by the project and reporter fields |
 | `cores/python/jira_dashboard_ui.py` | Dashboard composition and escaped browser configuration |
 | `cores/python/jira_report_view.py` | Offline report rendering |

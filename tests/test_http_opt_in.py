@@ -19,11 +19,17 @@ _JQL_LOG_DIR = tempfile.TemporaryDirectory()
 _JQL_LOG_PATCH = patch.object(jira_jql_log, 'F_JQL_LOG', Path(_JQL_LOG_DIR.name) / 'jql.jsonl')
 
 
+_AUTOLOGIN_PATCH = patch.object(web.WindowsAutoLogin, 'load', return_value=None)
+
+
 def setUpModule():
     _JQL_LOG_PATCH.start()
+    # Launcher tests must never read a real saved login from Windows Credential Manager.
+    _AUTOLOGIN_PATCH.start()
 
 
 def tearDownModule():
+    _AUTOLOGIN_PATCH.stop()
     _JQL_LOG_PATCH.stop()
     _JQL_LOG_DIR.cleanup()
 

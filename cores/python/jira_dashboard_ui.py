@@ -7,7 +7,8 @@ from jira_periods import PERIODS
 from jira_report_view import render_html
 
 
-def dashboard_html(session: str, project: str, reporters: list[str], current_year: int, saved: dict | None = None) -> str:
+def dashboard_html(session: str, project: str, reporters: list[str], current_year: int, saved: dict | None = None,
+                   auto_login: dict | None = None) -> str:
     html = render_html("Jira", current_year, [], [], {period: [] for period in PERIODS})
     html = html.replace('const datasets=', 'let datasets=')
     html = html.replace('<h1>Jira', '<h1 id="report-title">Jira')
@@ -20,7 +21,8 @@ def dashboard_html(session: str, project: str, reporters: list[str], current_yea
     html = html.replace('</section>', '<div id="project-graphs"></div></section>', 1)
     html = html.replace('<p id="period-note">', '<button type="button" id="download-csv">Download CSV</button><p id="period-note">', 1)
     html = html.replace('</style>', read_asset("dashboard.css") + "</style>")
-    config = json.dumps(dict(session=session, project=project, reporters=reporters, currentYear=current_year, saved=saved or {}))
+    config = json.dumps(dict(session=session, project=project, reporters=reporters, currentYear=current_year, saved=saved or {},
+                                 autoLogin=auto_login or {'available': False, 'enabled': False}))
     config = config.replace('<', '\\u003c').replace('>', '\\u003e').replace('&', '\\u0026')
     script = (read_asset("combo.js") + read_asset("dashboard.js") + read_asset("project-charts.js")).replace('WEB_CONFIG', config)
     return arrange_layout(enhance_dashboard(html.replace('</script>', script + '</script>', 1)))

@@ -1,9 +1,12 @@
 """Parse launcher options, prompt for credentials, and run the dashboard."""
 import argparse
 import os
+import sys
 import webbrowser
 
-from jira_credentials import prompt_credentials
+from jira_autologin import WindowsAutoLogin
+from jira_credentials import HTTP_WARNING, prompt_credentials
+from jira_inputs import saved_language
 from jira_dashboard_server import DashboardServer
 from jira_dashboard_lifecycle import restarting_dashboard
 from jira_settings import load_settings
@@ -36,14 +39,23 @@ def main():
     parser.add_argument('--profile', default='default', help='Read existing nonsecret defaults')
     parser.add_argument('--port', type=int, default=0, help='Local port (default: automatically allocated)')
     parser.add_argument('--no-open', action='store_true', help='Print the dashboard URL without opening a browser')
+    parser.add_argument('--no-auto-login', action='store_true', help='Ask for the password even if Auto login is on (it stays on)')
     args = parser.parse_args()
     if not 0 <= args.port <= 65535:
         parser.error('port must be between 0 and 65535')
     saved = load_settings(args.profile, allow_insecure_http=True)
-    credentials = prompt_credentials(args.url or (saved.site_url if saved else None),
-                                     args.user_id or (saved.email if saved else None),
-                                     allow_insecure_http=args.allow_insecure_http)
-    with restarting_dashboard(DashboardServer, credentials, args.project or (saved.projects if saved else []),
+    autologin = WindowsAutoLogin(args.profile)
+    url, user_id = args.url or (saved.site_url if saved else None), args.user_id or (saved.email if saved else None)
+    # A saved login is only used for the Jira server and user it was saved with, never for another URL or ID.
+    credentials = None if args.no_auto_login else autologin.load(args.url, args.user_id)
+    if credentials:
+        print(f'Auto login: using the saved login for {credentials.email} at {credentials.url}. Turn it off with the Auto login '
+              'button in the dashboard, or start with --no-auto-login to type the password once.')
+        if credentials.url.startswith('http://'):
+            print(HTTP_WARNING[saved_language()], file=sys.stderr)
+    else:
+        credentials = prompt_credentials(url, user_id, allow_insecure_http=args.allow_insecure_http)
+    with restarting_dashboard(lambda *arguments: DashboardServer(*arguments, autologin=autologin), credentials, args.project or (saved.projects if saved else []),
                          args.reporter or (saved.reporters if saved else []), args.port) as server:
         print(f'Dashboard: {server.origin}/')
         print('Select the year in your browser. Keep this terminal open; press Ctrl+C to stop.')

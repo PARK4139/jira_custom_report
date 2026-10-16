@@ -9,6 +9,7 @@ import subprocess
 import sys
 import threading
 
+from jira_autologin import NoAutoLogin
 from jira_credentials import Credentials
 from jira_dashboard_service import build_report
 from jira_dashboard_ui import dashboard_html
@@ -36,9 +37,10 @@ def reveal_output(path):
 class DashboardServer(ThreadingHTTPServer):
     daemon_threads = True
 
-    def __init__(self, credentials: Credentials, projects: list[str], reporters: list[str], port: int = 0):
+    def __init__(self, credentials: Credentials, projects: list[str], reporters: list[str], port: int = 0, *, autologin=None):
         super().__init__(("127.0.0.1", port), DashboardHandler)
         self.credentials = credentials
+        self.autologin = autologin if autologin is not None else NoAutoLogin()
         self.projects, self.reporters = projects, reporters
         self.project_names = {}
         self.session = secrets.token_urlsafe(32)
@@ -74,7 +76,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.respond(403, {'error': 'Untrusted host.'})
         elif self.path == '/':
             self.respond(200, dashboard_html(self.server.session, ' '.join(self.server.projects),
-                                            self.server.reporters, self.server.current_year, load_inputs()), 'text/html')
+                                            self.server.reporters, self.server.current_year, load_inputs(),
+                                             {'available': self.server.autologin.available, 'enabled': self.server.autologin.enabled()}), 'text/html')
         else:
             self.respond(404, {'error': 'Not found.'})
 
@@ -98,7 +101,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
         if self.path == '/api/output':
             self.save_output()
             return
-        if self.path not in ('/api/report', '/api/projects', '/api/project', '/api/reporters', '/api/inputs', '/api/shutdown'):
+        if self.path not in ('/api/report', '/api/projects', '/api/project', '/api/reporters', '/api/inputs', '/api/autologin', '/api/shutdown'):
             self.discard_body()
             self.respond(404, {'error': 'Not found.'})
             return
@@ -141,6 +144,22 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 else:
                     self.server.project_names[project['key']] = project['name']
                     self.respond(200, project)
+                return
+            if self.path == '/api/autologin':
+                if not isinstance(payload, dict) or set(payload) != {'enabled'} or type(payload['enabled']) is not bool:
+                    raise ValueError
+                if not self.server.autologin.available:
+                    self.respond(404, {'error': 'Auto login is not available.'})
+                    return
+                try:
+                    if payload['enabled']:
+                        self.server.autologin.enable(self.server.credentials)
+                    else:
+                        self.server.autologin.disable()
+                except RuntimeError as error:
+                    self.respond(500, {'error': str(error)})
+                else:
+                    self.respond(200, {'enabled': self.server.autologin.enabled()})
                 return
             if self.path == '/api/inputs':
                 if not isinstance(payload, dict) or set(payload) != {'values'}:

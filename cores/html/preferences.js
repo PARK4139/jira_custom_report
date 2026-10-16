@@ -41,6 +41,7 @@ function translateReport(){
  if(typeof showProjectCount==='function')showProjectCount();
  byId('download-csv').textContent=t('csv');byId('download-jpg').textContent=t('jpg');
  const themeButton=byId('theme');themeButton.textContent=t(theme);themeButton.setAttribute('aria-pressed',String(theme==='dark'));themeButton.setAttribute('aria-label',t('theme')+': '+t(theme));
+ showAutoLogin();
  byId('footer-text').textContent=t('footer');
  for(const option of byId('period-select').options)option.textContent=messages[locale].periods[option.value];
  const rows=datasets[activePeriod]||[];
@@ -64,4 +65,23 @@ byId('period-select').value=activePeriod;
 
 byId('locale').value=locale;
 byId('locale').addEventListener('change',()=>{locale=byId('locale').value;remember('locale',locale);render(activePeriod)});
+// Auto login (opt-in): the server keeps the Jira login in Windows Credential Manager so the next launch needs no password.
+let autoLoginOn=Boolean(config.autoLogin&&config.autoLogin.enabled);
+function showAutoLogin(){
+const button=byId('autologin');
+button.textContent=t(autoLoginOn?'autoOn':'autoOff');button.setAttribute('aria-pressed',String(autoLoginOn));
+button.setAttribute('aria-label',t('autoLogin')+': '+t(autoLoginOn?'autoOn':'autoOff'));
+byId('autologin-field').hidden=!(config.autoLogin&&config.autoLogin.available);
+}
+byId('autologin').addEventListener('click',async()=>{
+const enable=!autoLoginOn,button=byId('autologin');
+if(enable&&!confirm(t('autoLoginConfirm')))return;
+button.disabled=true;
+try{
+const response=await fetch('/api/autologin',{method:'POST',headers:{'Content-Type':'application/json','X-Session-Token':config.session},body:JSON.stringify({enabled:enable})});
+const result=await response.json();if(!response.ok)throw new Error(result.error||'');
+autoLoginOn=result.enabled===true;status.className='';setStatus(autoLoginOn?'autoLoginEnabled':'autoLoginDisabled');
+}catch(error){status.className='error';setStatus('autoLoginFailed',{},error.message)}
+finally{button.disabled=false;showAutoLogin()}
+});
 byId('theme').addEventListener('click',()=>{theme=theme==='light'?'dark':'light';remember('theme',theme);translateReport()});

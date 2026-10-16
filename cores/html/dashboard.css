@@ -11,6 +11,7 @@ body{max-width:none;margin:0;padding:0;background:var(--page);color:var(--ink);f
 .titles{flex:1 1 320px;min-width:0}.titles h1{margin:0;font-size:18px;font-weight:600;color:var(--nav-ink)}.titles .sub{color:rgba(255,255,255,.8);font-size:12px}
 .preferences{display:flex;gap:16px;flex-wrap:wrap;margin:0;justify-content:flex-end}
 .preferences label{display:flex;align-items:center;gap:8px;color:var(--nav-ink);font-size:13px}
+.preferences label[hidden]{display:none}
 .topbar select,.topbar button{padding:5px 10px;font-size:13px;color:var(--nav-ink);background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.4);border-radius:3px;cursor:pointer}
 .topbar select option{color:#172b4d;background:#fff}
 

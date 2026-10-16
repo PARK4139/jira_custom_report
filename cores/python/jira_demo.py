@@ -17,6 +17,7 @@ import jira_dashboard_server
 import jira_dashboard_service
 import jira_inputs
 import jira_paths
+from jira_autologin import MemoryAutoLogin
 from jira_credentials import Credentials
 from jira_issue_monthly import TZ
 
@@ -127,7 +128,7 @@ def main():
         parser.error("port must be between 0 and 65535")
     with demo_environment():
         credentials = Credentials("https://demo.invalid", "demo", "demo-not-a-real-password")
-        with jira_dashboard_server.DashboardServer(credentials, DEFAULT_PROJECTS, DEFAULT_REPORTERS, args.port) as server:
+        with jira_dashboard_server.DashboardServer(credentials, DEFAULT_PROJECTS, DEFAULT_REPORTERS, args.port, autologin=MemoryAutoLogin()) as server:
             print(f"Dashboard (DEMO): {server.origin}/", flush=True)
             print("DEMO MODE: dummy data only; no Jira connection. Keep this terminal open; press Ctrl+C to stop.", flush=True)
             if not args.no_open and not open_browser(server.origin + "/"):
