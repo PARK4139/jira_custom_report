@@ -15,6 +15,7 @@ async function waitFor(action, label) {
 }
 async function main(){
   await fs.mkdir(output,{recursive:true});
+  await fs.rm(path.join(output,'fixture-inputs.json'),{force:true});
   const profile=await fs.mkdtemp(path.join(output,'chrome-profile-'));
   const fixture=spawn(path.join(root,'.venv','Scripts','python.exe'),['-c',"import runpy; runpy.run_path('tests/serve_dashboard_fixture.py', run_name='__main__')"],{cwd:root,windowsHide:true});
   let origin='',chrome,client;
@@ -40,12 +41,12 @@ async function main(){
     const evaluate=async expression=>{const value=await send('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});if(value.exceptionDetails)throw Error(JSON.stringify(value.exceptionDetails));return value.result.value};
     await send('Page.enable');await send('Runtime.enable');
     await send('Page.navigate',{url:origin});
-    await waitFor(()=>evaluate("typeof hasResults!=='undefined' && document.querySelector('#projects').disabled===false && document.querySelector('#projects').value.includes('DEMO')"),'project list');
+    await waitFor(()=>evaluate("typeof hasResults!=='undefined' && document.querySelector('#projects').disabled===false && projectsField.values.some(chip=>chip.value==='DEMO')"),'project list');
     const result=await evaluate(`(async()=>{
       const check=(value,message)=>{if(!value)throw Error(message)};
       const until=async predicate=>{const end=Date.now()+15000;while(!predicate()){if(Date.now()>end)throw Error('UI wait timeout');await new Promise(resolve=>setTimeout(resolve,30))}};
       const change=(id,value)=>{byId(id).value=value;byId(id).dispatchEvent(new Event('change',{bubbles:true}))};
-      let requests=0;const originalFetch=fetch;window.fetch=async(url,options)=>{if(url==='/api/report')requests++;const response=await originalFetch(url,options);if(url==='/api/output'){const saved=await response.clone().json();savedOutputs.push(saved.saved)}return response};
+      let requests=0;const savedOutputs=[];const originalFetch=fetch;window.fetch=async(url,options)=>{if(url==='/api/report')requests++;const response=await originalFetch(url,options);if(url==='/api/output'){const saved=await response.clone().json();savedOutputs.push(saved.saved)}return response};
       const setTheme=mode=>{if(document.documentElement.dataset.theme!==mode)byId('theme').click()};
       check(document.documentElement.dataset.theme==='light','white theme is the default');
       change('locale','ko');setTheme('dark');change('year','2026');
@@ -62,7 +63,7 @@ async function main(){
         await exportJpg();check(statusKey!=='exportFailed','JPG export failed');
       }
       check(requests===1,'preferences or export triggered a Jira query');
-      check(getComputedStyle(document.body).backgroundColor==='rgb(255, 255, 255)','light page');
+      check(getComputedStyle(document.body).backgroundColor==='rgb(244, 245, 247)','light page (Jira-style gray page, white cards)');
       check(byId('project-graphs').querySelector('p').textContent.includes('Created'),'English project summary');
       const before=savedOutputs.length;byId('download-csv').click();await until(()=>savedOutputs.length>before);
       return {requests,language:document.documentElement.lang,theme:document.documentElement.dataset.theme,status:byId('query-status').textContent,savedOutputs};

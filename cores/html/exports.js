@@ -1,6 +1,6 @@
 async function exportJpg(){
  if(!hasResults||!loadedFilters||queryRunning)return;
- const button=byId('download-jpg');button.disabled=true;button.textContent=t('exporting');
+ const previousStatus=[statusKey,statusValues,statusError],button=byId('download-jpg');button.disabled=true;button.textContent=t('exporting');
  const controls=[...form.elements,byId('locale'),byId('theme'),byId('period-select'),byId('download-csv')];
  const disabled=controls.map(control=>control.disabled);controls.forEach(control=>control.disabled=true);
  try{
@@ -33,8 +33,8 @@ async function exportJpg(){
   const now=new Date(),stamp=now.getFullYear()+String(now.getMonth()+1).padStart(2,'0')+String(now.getDate()).padStart(2,'0')+'-'+String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0')+String(now.getSeconds()).padStart(2,'0');
   const filename='jira_'+stamp+'_'+loadedFilters.year+'_'+activePeriod+'_'+locale+'_'+theme+'.jpg';
   const response=await fetch('/api/output',{method:'POST',headers:{'Content-Type':'image/jpeg','X-Session-Token':config.session,'X-Output-Name':filename},body:blob});
-  const result=await response.json();if(!response.ok)throw new Error(result.error||'JPG save failed.');setStatus('exportDone',{filename:result.saved});
- }catch{status.className='error';setStatus('exportFailed')}
+  const result=await response.json();if(!response.ok)throw new Error(result.error||'JPG save failed.');setStatus(...previousStatus);
+ }catch(error){console.error('JPG export failed:',error);status.className='error';setStatus('exportFailed')}
  finally{controls.forEach((control,i)=>control.disabled=disabled[i]);button.disabled=false;button.textContent=t('jpg')}
 }
 byId('download-jpg').addEventListener('click',exportJpg);

@@ -17,7 +17,7 @@ for(const [field,color] of [['created','#ff6876'],['resolved','#5bd4a4']]){appen
 const sumOf=field=>rows.reduce((n,row)=>n+row[field],0),ratioNode=append('text',{x:R,y:16,fill:'#5e6c84','font-size':16,'font-weight':600,'text-anchor':'end'});
 ratioNode.dataset.ratio=sumOf('created')?(sumOf('resolved')/sumOf('created')*100).toFixed(1)+'%':'—';ratioNode.textContent=t('ratio')+': '+ratioNode.dataset.ratio;
 section.append(chart);
-const details=document.createElement('details'),caption=document.createElement('summary');caption.dataset.text='details';caption.textContent='Period counts and JQL';details.append(caption);
+const details=document.createElement('details'),caption=document.createElement('summary');caption.dataset.text='details';caption.textContent='JQL FOR DATA PROOF';details.append(caption);
 const table=document.createElement('table'),head=document.createElement('tr');for(const text of ['Period [start, end)','Created','Resolved','JQL']){const th=document.createElement('th');th.textContent=text;head.append(th)}table.append(head);
 for(const row of rows){const tr=document.createElement('tr');for(const value of [row.start+' / '+row.end,row.created,row.resolved]){const td=document.createElement('td');td.textContent=value;tr.append(td)}const td=document.createElement('td');for(const field of ['created','resolved']){const pre=document.createElement('pre');pre.textContent=row.queries[field];td.append(pre)}tr.append(td);table.append(tr)}details.append(table);section.append(details);container.append(section);
 }

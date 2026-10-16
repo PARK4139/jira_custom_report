@@ -2,8 +2,11 @@
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import os
 import re
 import secrets
+import subprocess
+import sys
 import threading
 
 from jira_credentials import Credentials
@@ -15,6 +18,19 @@ from jira_paths import D_OUTPUTS
 from jira_projects import fetch_projects
 from jira_reporters import search_reporters
 from jira_settings import Settings
+
+
+def reveal_output(path):
+    """Show a saved file in the OS file manager; failures are not worth interrupting the export."""
+    try:
+        if os.name == 'nt':
+            subprocess.Popen(f'explorer /select,"{path}"')
+        elif sys.platform == 'darwin':
+            subprocess.Popen(['open', '-R', str(path)])
+        else:
+            subprocess.Popen(['xdg-open', str(path.parent)])
+    except OSError:
+        pass
 
 
 class DashboardServer(ThreadingHTTPServer):
@@ -213,6 +229,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     target.unlink(missing_ok=True)
                 self.respond(500, {'error': 'Could not save the report in outputs.'})
                 return
+            if extension == 'jpg':
+                reveal_output(target.resolve())
             self.respond(201, {'saved': f'outputs/{filename}'})
             return
         self.respond(409, {'error': 'Could not allocate a unique JPG filename.'})

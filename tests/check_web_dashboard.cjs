@@ -89,7 +89,7 @@ elements.get('locale').value='ko';for(const handler of elements.get('locale').ha
 const project=elements.get('project-graphs').children[0];
 assert.match(project.children[1].children[0].textContent,/생성:/);
 assert.equal(project.querySelector('th').textContent,'기간 [시작일 포함, 종료일 제외)');
-assert.equal(project.querySelector('summary').textContent,'기간별 집계 및 JQL');
+assert.equal(project.querySelector('summary').textContent,'JQL FOR DATA PROOF');
 elements.get('theme').click();elements.get('theme').click();
 assert.equal(project.querySelector('path').getAttribute('stroke'),'#bd2944');
 assert.equal(project.querySelector('line').getAttribute('stroke'),'#d2dce8');

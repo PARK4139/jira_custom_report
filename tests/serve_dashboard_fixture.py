@@ -33,7 +33,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     output_dir = Path('.local/ui-verification/fixture-outputs').resolve()
     inputs_file = Path('.local/ui-verification/fixture-inputs.json').resolve()
-    with patch.object(jira_inputs, "F_INPUTS", inputs_file), patch("jira_dashboard_server.D_OUTPUTS", output_dir), patch(
+    with patch.object(jira_inputs, "F_INPUTS", inputs_file), patch("jira_dashboard_server.D_OUTPUTS", output_dir), patch("jira_dashboard_server.reveal_output"), patch(
             "jira_dashboard_service.fetch_year_issues", side_effect=collect), patch(
             "jira_dashboard_server.fetch_projects", return_value=[
                 {"key": "DEMO", "name": "Demo team"}, {"key": "HTG", "name": "Hotel group"},
