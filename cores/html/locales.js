@@ -7,9 +7,9 @@ note:'Chart: cumulative counts from January 1 of the selected year; table: per-p
 footer:'7/14-day periods begin January 1; the final period ends January 1 of the next year. Dates use the Jira account timezone. Zero results are included. Each period and date field is queried separately. Resolved issues may have been created before this year. The ratio is not a cohort resolution rate.',
 periods:{'1week':'Weekly','2week':'Every 2 weeks',monthly:'Monthly',yearly:'Yearly',q1:'Q1 (Jan-Mar, weekly)',q2:'Q2 (Apr-Jun, weekly)',q3:'Q3 (Jul-Sep, weekly)',q4:'Q4 (Oct-Dec, weekly)'}},
 ko:{controlsHeading:'조회필터',cumulative:'누적',details:'JQL FOR DATA PROOF',projectsLoading:'Jira 프로젝트를 불러오는 중…',projectsReady:'프로젝트와 연도를 선택하고 보고자를 입력하세요.',projectsEmpty:'접근 가능한 프로젝트가 없습니다. 계정 권한을 확인하세요.',projectsFailed:'프로젝트를 불러오지 못했습니다. 페이지를 새로고침하세요.',projectSelection:'프로젝트를 하나 이상 선택하세요',projectUnknown:'알 수 없는 프로젝트: {names}. Jira 후보에서 고르세요(Tab).',comboNoMatch:'일치하는 Jira 후보가 없습니다',projectUnavailable:'프로젝트를 불러올 수 없음',language:'언어',theme:'화면 모드',dark:'다크 모드',light:'화이트 모드',year:'연도',projects:'프로젝트',reporters:'보고자',query:'Jira 조회',period:'집계 기간',csv:'CSV 저장',jpg:'JPG 내보내기',exporting:'내보내는 중…',exportFailed:'JPG를 내보내지 못했습니다. 다시 시도해 주세요.',csvFailed:'CSV 저장 실패: {error}',exportDone:'저장 위치: {filename}',
-title:'이월 누적 이슈 추이(Resolved-to-Created Ratio)',heading:'{year} {period} ISSUE Resolved/Created 비율',created:'생성',resolved:'해결',ratio:'해결 / 생성',range:'기간 [시작일 포함, 종료일 제외)',view:'쿼리 2개 보기',
+title:'누적 이슈 추이(Resolved-to-Created Ratio)',heading:'{year} {period} ISSUE Resolved/Created 비율',created:'생성',resolved:'해결',ratio:'해결 / 생성',range:'기간 [시작일 포함, 종료일 제외)',view:'쿼리 2개 보기',
 idle:'프로젝트를 선택하고 보고자를 입력하면 자동으로 조회합니다.',changed:'조회 조건 변경을 자동으로 적용합니다.',loading:'{year}년의 네 가지 집계 기간을 조회하고 있습니다. 몇 분 정도 걸릴 수 있습니다.',done:'{year}년: Jira 요청 {count}회로 조회 완료 · 프로젝트 {projects}개',failed:'Jira 조회에 실패했습니다.',
-note:'그래프: 선택 연도 1월 1일부터 이월 누적 / 표: 기간별 건수. {buckets}개 기간 / 프로젝트당 JQL {count}개. 시작일을 포함하고 종료일은 제외합니다.',
+note:'그래프: 선택 연도 1월 1일부터 누적 / 표: 기간별 건수. {buckets}개 기간 / 프로젝트당 JQL {count}개. 시작일을 포함하고 종료일은 제외합니다.',
 footer:'7일·14일 집계는 1월 1일부터 시작하며 마지막 구간은 다음 해 1월 1일에 끝납니다. 날짜는 Jira 계정의 시간대를 따릅니다. 결과가 0건인 기간도 표시합니다. 기간 및 생성·해결 조건별로 각각 조회합니다. 해결된 이슈에는 이전 연도에 생성된 이슈가 포함될 수 있으므로 해결/생성 비율은 같은 이슈 집단의 해결률이 아닙니다.',
 periods:{'1week':'1주간','2week':'2주간',monthly:'월간',yearly:'연간',q1:'1분기',q2:'2분기',q3:'3분기',q4:'4분기'}}
 };
