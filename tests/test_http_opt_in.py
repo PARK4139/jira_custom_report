@@ -8,6 +8,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 import jira_credentials as credentials
+import jira_inputs
 import jira_jql_log
 import jira_issue_monthly as report
 import jira_dashboard_cli as web
@@ -29,13 +30,26 @@ def tearDownModule():
 
 class HttpOptInTests(unittest.TestCase):
     def test_http_url_is_accepted_without_the_extra_flag(self):
-        with patch.object(credentials.sys.stdin, 'isatty', return_value=True), patch.object(credentials, 'getpass', return_value='synthetic-secret'), contextlib.redirect_stderr(io.StringIO()) as warning:
+        with patch.object(credentials.sys.stdin, 'isatty', return_value=True), patch.object(credentials, 'saved_language', return_value='ko'), patch.object(credentials, 'getpass', return_value='synthetic-secret'), contextlib.redirect_stderr(io.StringIO()) as warning:
             value = credentials.prompt_credentials('http://jira.internal', 'sample')
         self.assertTrue(value.allow_insecure_http)
         self.assertIn('암호화 없이', warning.getvalue())
 
+    def test_warning_follows_the_saved_dashboard_language(self):
+        for language, expected in (('en', 'without encryption'), ('ko', '암호화 없이')):
+            with self.subTest(language=language), tempfile.TemporaryDirectory() as directory:
+                inputs = Path(directory) / 'inputs.json'
+                inputs.write_text(json.dumps({'locale': language}), encoding='utf-8')
+                with patch.object(jira_inputs, 'F_INPUTS', inputs), patch.object(credentials.sys.stdin, 'isatty', return_value=True), patch.object(credentials, 'getpass', return_value='synthetic-secret'), contextlib.redirect_stderr(io.StringIO()) as warning:
+                    credentials.prompt_credentials('http://jira.internal', 'sample')
+                self.assertIn(expected, warning.getvalue())
+
+    def test_language_falls_back_to_the_system_language_without_saved_inputs(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(jira_inputs, 'F_INPUTS', Path(directory) / 'missing.json'):
+            self.assertIn(jira_inputs.saved_language(), ('ko', 'en'))
+
     def test_cli_http_url_without_flag_reaches_server_startup(self):
-        with patch('sys.argv', ['report', '--url', 'http://jira.internal', '--id', 'sample', '--no-open']), patch.object(web, 'load_settings', return_value=None), patch.object(credentials.sys.stdin, 'isatty', return_value=True), patch.object(credentials, 'getpass', return_value='synthetic-secret'), patch.object(web, 'restarting_dashboard') as restart, contextlib.redirect_stderr(io.StringIO()), contextlib.redirect_stdout(io.StringIO()):
+        with patch('sys.argv', ['report', '--url', 'http://jira.internal', '--id', 'sample', '--no-open']), patch.object(web, 'load_settings', return_value=None), patch.object(credentials.sys.stdin, 'isatty', return_value=True), patch.object(credentials, 'saved_language', return_value='ko'), patch.object(credentials, 'getpass', return_value='synthetic-secret'), patch.object(web, 'restarting_dashboard') as restart, contextlib.redirect_stderr(io.StringIO()), contextlib.redirect_stdout(io.StringIO()):
             web.main()
         self.assertTrue(restart.call_args.args[1].allow_insecure_http)
         self.assertEqual(restart.call_args.args[1].url, 'http://jira.internal')
@@ -45,7 +59,7 @@ class HttpOptInTests(unittest.TestCase):
         def password(*args):
             self.assertIn('암호화 없이', output.getvalue())
             return 'synthetic-secret'
-        with patch.object(credentials.sys.stdin, 'isatty', return_value=True), patch.object(credentials, 'getpass', side_effect=password), contextlib.redirect_stderr(output):
+        with patch.object(credentials.sys.stdin, 'isatty', return_value=True), patch.object(credentials, 'saved_language', return_value='ko'), patch.object(credentials, 'getpass', side_effect=password), contextlib.redirect_stderr(output):
             value = credentials.prompt_credentials('http://jira.internal/jira', 'sample', allow_insecure_http=True)
         self.assertTrue(value.allow_insecure_http)
         self.assertNotIn(value.token, output.getvalue())

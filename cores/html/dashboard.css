@@ -60,6 +60,21 @@ body{max-width:none;margin:0;padding:0;background:var(--page);color:var(--ink);f
 .project-report h3{margin:0 0 4px;font-size:16px;font-weight:600}
 .project-report p{margin:0 0 8px;color:var(--muted)}
 .project-report svg{width:100%;height:auto}
+.project-report{position:relative}
+/* Chart motion: lines draw in, points pop in one after another, hovered points grow. */
+.project-report svg path.series-line{stroke-dasharray:1;stroke-dashoffset:0;animation:draw-line .9s ease-out}
+.project-report svg .series-dot{transition:r .12s ease,stroke-width .12s ease;animation:dot-in .3s ease-out both;animation-delay:calc(min(var(--i,0)*14ms,.6s) + .45s)}
+.project-report svg .series-dot.hot{r:6;stroke:var(--surface);stroke-width:2}
+.project-report svg line.hover-line{stroke:var(--muted);stroke-dasharray:4 3;pointer-events:none}
+.project-report svg .hover-capture{cursor:crosshair}
+.chart-tip{position:absolute;z-index:2;display:grid;gap:2px;min-width:190px;padding:8px 10px;font-size:12px;line-height:1.4;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:3px;box-shadow:0 4px 10px rgba(9,30,66,.25);pointer-events:none;white-space:nowrap}
+.chart-tip[hidden]{display:none}
+.chart-tip strong{font-size:13px}
+.chart-tip .tip-range{color:var(--muted);margin-bottom:2px}
+.chart-tip .tip-row{font-variant-numeric:tabular-nums}
+@keyframes draw-line{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+@keyframes dot-in{from{opacity:0;r:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){.project-report svg path.series-line,.project-report svg .series-dot{animation:none;transition:none}}
 .project-report table{margin-top:12px}
 .chart-wrap{background:var(--surface);border:1px solid var(--line);border-radius:3px}
 .red{color:var(--created)}.green{color:var(--resolved)}

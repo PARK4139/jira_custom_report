@@ -18,6 +18,7 @@ class Element {
   querySelector(tag){return this.querySelectorAll(tag)[0]}
   addEventListener(event,handler){(this.handlers[event]??=[]).push(handler)}
   click(){for(const handler of this.handlers.click??[])handler()}
+  getBoundingClientRect(){return {left:0,top:0,width:1060,height:410}}
   reportValidity(){return true}
   checkValidity(){return true}
 }
@@ -83,6 +84,23 @@ assert.deepEqual(points.slice(0,3).map(point=>point.children[0].dataset.cumulati
 assert.deepEqual(points.slice(3).map(point=>point.children[0].dataset.cumulativeValue),['1','1','4']);
 assert.equal(points[4].attributes.cy,points[3].attributes.cy,'zero periods carry the previous resolved count');
 assert.ok(Math.abs(points[2].attributes.cy-(320-290*10/12))<1e-8,'chart scale uses cumulative maximum');
+// Hover: a guide line, the highlighted points, and a tooltip with the cumulative values of the nearest period.
+{
+const svgNode=firstProject.querySelector('svg'),capture=svgNode.querySelector('rect'),tip=firstProject.children.find(node=>node.className==='chart-tip');
+const guide=svgNode.querySelectorAll('line').find(node=>node.attributes.class==='hover-line');
+const hot=()=>svgNode.querySelectorAll('circle').filter(node=>node.attributes.class==='series-dot hot');
+assert.equal(guide.attributes.visibility,'hidden');assert.equal(tip.hidden,true);assert.equal(hot().length,0);
+capture.handlers.pointermove[0]({clientX:1037,clientY:120});
+assert.equal(guide.attributes.visibility,'visible');assert.equal(hot().length,2,'one highlighted point per series');
+assert.equal(String(guide.attributes.x1),String(points[2].attributes.cx),'the guide sits on the last period');
+assert.equal(tip.hidden,false);
+const tipText=tip.children.map(node=>node.textContent).join(' | ');
+assert.match(tipText,/Quality team \(DEMO\)/);assert.match(tipText,/10 \(\+/);assert.match(tipText,/4 \(\+/);assert.match(tipText,/%/);
+capture.handlers.pointermove[0]({clientX:0,clientY:120});
+assert.equal(String(guide.attributes.x1),String(points[0].attributes.cx),'moving left snaps to the first period');
+capture.handlers.pointerleave[0]();
+assert.equal(guide.attributes.visibility,'hidden');assert.equal(tip.hidden,true);assert.equal(hot().length,0);
+}
 const ratios=project=>project.querySelectorAll('text').filter(node=>node.dataset.ratio);
 assert.equal(ratios(firstProject).length,1,'ratio is drawn inside each graph');assert.equal(ratios(firstProject)[0].dataset.ratio,'40.0%');assert.equal(ratios(firstProject)[0].textContent,'Resolved-to-Created Ratio: 40.0%');
 assert.equal(firstProject.querySelector('table').children[2].children[1].textContent,'1','project table remains per-period');

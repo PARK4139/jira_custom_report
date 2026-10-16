@@ -124,13 +124,17 @@ async function main() {
     assert.equal(await placeholder('projects'), 'ctrl space + tab');
     await clickField('projects');
     await waitFor(async () => (await listTexts('projects')).length === 3, 'project candidates on click');
-    // With the list open, ArrowDown then Ctrl+Space (twice) must not send the highlight back to the top.
+    // With the list open (after a mouse click), ArrowDown x2 then Ctrl+Space adds the highlighted candidate as a chip.
     const activeIndex = () => evaluate("[...document.getElementById('projects').parentElement.querySelectorAll('.combo-list li')].findIndex(li=>li.className==='active')");
     await key('ArrowDown', 'ArrowDown', 40); await key('ArrowDown', 'ArrowDown', 40);
     assert.equal(await activeIndex(), 2);
-    for (let i = 0; i < 2; i++) { await send('Input.dispatchKeyEvent', {type: 'rawKeyDown', key: ' ', code: 'Space', windowsVirtualKeyCode: 32, modifiers: 2}); await send('Input.dispatchKeyEvent', {type: 'keyUp', key: ' ', code: 'Space', windowsVirtualKeyCode: 32, modifiers: 2}); }
-    await delay(300);
-    assert.equal(await activeIndex(), 2, 'Ctrl+Space twice keeps the highlighted candidate');
+    const highlighted = await evaluate("document.getElementById('projects').parentElement.querySelectorAll('.combo-list li')[2].textContent");
+    await send('Input.dispatchKeyEvent', {type: 'rawKeyDown', key: ' ', code: 'Space', windowsVirtualKeyCode: 32, modifiers: 2});
+    await send('Input.dispatchKeyEvent', {type: 'keyUp', key: ' ', code: 'Space', windowsVirtualKeyCode: 32, modifiers: 2});
+    await waitFor(async () => (await chips('projects')).length === 1, 'Ctrl+Space adds a chip from the open list');
+    assert.deepEqual(await chips('projects'), [highlighted], 'the highlighted candidate became the chip');
+    assert.equal(await evaluate("document.getElementById('projects').value"), '', 'Ctrl+Space does not type a space');
+    await removeChip('projects', 0);
     await evaluate("document.getElementById('projects').value=''");
     await type('hot');
     await waitFor(async () => (await hint('projects')) === 'Hotel group (HTG)', 'filtered project');

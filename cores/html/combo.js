@@ -1,6 +1,7 @@
 
 // Chip field with fuzzy "skim"-style candidates. Every chosen value is a chip; the input only holds the text being typed.
-// Ctrl+Space shows candidates, Tab (or Enter after arrow keys) turns the highlighted candidate into a chip.
+// Ctrl+Space opens the candidates, or turns the highlighted one into a chip when they are already open;
+// Tab (or Enter after arrow keys) also turns the highlighted candidate into a chip.
 function fuzzyMatch(query,text){
 const needle=query.trim().toLowerCase();if(!needle)return {score:0,indices:[]};
 const hay=text.toLowerCase(),whole=hay.indexOf(needle);
@@ -121,7 +122,7 @@ refresh();
 input.addEventListener('blur',()=>{commitPending();close()});
 input.addEventListener('keydown',event=>{
 const open=!list.hidden&&shown.length>0,token=input.value.trim();
-if((event.ctrlKey||event.metaKey)&&(event.key===' '||event.code==='Space')){event.preventDefault();if(!open){navigated=false;refresh()}}
+if((event.ctrlKey||event.metaKey)&&(event.key===' '||event.code==='Space')){event.preventDefault();if(open)pick(active);else{navigated=false;refresh()}}
 else if(event.key==='ArrowDown'){if(open){event.preventDefault();move(1)}else refresh()}
 else if(event.key==='ArrowUp'){if(open){event.preventDefault();move(-1)}}
 else if(event.key==='Tab'&&!event.shiftKey&&open&&(token||navigated)){event.preventDefault();pick(active)}

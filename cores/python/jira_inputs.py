@@ -66,6 +66,18 @@ def load_inputs() -> dict:
             and len(value) <= MAX_VALUE and VALIDATORS[key](value)}
 
 
+def saved_language() -> str:
+    """Language of the dashboard (saved setting), else the OS display language, for terminal messages."""
+    saved = load_inputs().get("locale")
+    if saved in ("ko", "en"):
+        return saved
+    try:
+        import ctypes
+        return "ko" if ctypes.windll.kernel32.GetUserDefaultUILanguage() & 0xFF == 0x12 else "en"
+    except (AttributeError, OSError):
+        return "en"
+
+
 def save_inputs(values: dict) -> None:
     if not valid_inputs(values):
         raise ValueError("Invalid dashboard inputs.")
