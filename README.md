@@ -1,5 +1,7 @@
 # Jira web dashboard
 
+> **처음 쓰신다면 [QUICK START GUIDE](QUICK_START.md)** (스크린샷 포함)를 먼저 보세요. / New here? Start with the [QUICK START GUIDE](QUICK_START.md).
+
 On-premises Jira Server/Data Center issue trends in a local web app.
 
 ## Start

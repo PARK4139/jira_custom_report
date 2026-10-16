@@ -49,5 +49,7 @@ evidence/
 *.jpg
 *.jpeg
 *.png
+# QUICK START screenshots use dummy data only and are part of the guide
+!docs/quick-start/*.png
 *.csv
 !tests/**/*.csv
