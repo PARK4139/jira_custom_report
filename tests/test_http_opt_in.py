@@ -32,7 +32,7 @@ class HttpOptInTests(unittest.TestCase):
         with patch.object(credentials.sys.stdin, 'isatty', return_value=True), patch.object(credentials, 'getpass', return_value='synthetic-secret'), contextlib.redirect_stderr(io.StringIO()) as warning:
             value = credentials.prompt_credentials('http://jira.internal', 'sample')
         self.assertTrue(value.allow_insecure_http)
-        self.assertIn('without encryption', warning.getvalue())
+        self.assertIn('암호화 없이', warning.getvalue())
 
     def test_cli_http_url_without_flag_reaches_server_startup(self):
         with patch('sys.argv', ['report', '--url', 'http://jira.internal', '--id', 'sample', '--no-open']), patch.object(web, 'load_settings', return_value=None), patch.object(credentials.sys.stdin, 'isatty', return_value=True), patch.object(credentials, 'getpass', return_value='synthetic-secret'), patch.object(web, 'restarting_dashboard') as restart, contextlib.redirect_stderr(io.StringIO()), contextlib.redirect_stdout(io.StringIO()):
@@ -43,7 +43,7 @@ class HttpOptInTests(unittest.TestCase):
     def test_warning_precedes_password_and_has_no_secret(self):
         output = io.StringIO()
         def password(*args):
-            self.assertIn('without encryption', output.getvalue())
+            self.assertIn('암호화 없이', output.getvalue())
             return 'synthetic-secret'
         with patch.object(credentials.sys.stdin, 'isatty', return_value=True), patch.object(credentials, 'getpass', side_effect=password), contextlib.redirect_stderr(output):
             value = credentials.prompt_credentials('http://jira.internal/jira', 'sample', allow_insecure_http=True)

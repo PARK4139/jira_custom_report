@@ -77,7 +77,7 @@ def prompt_credentials(url: str | None = None, email: str | None = None, *, allo
     allow_insecure_http = allow_insecure_http or urlsplit(url).scheme.lower() == "http"
     url = validate_url(url=url, allow_insecure_http=allow_insecure_http)
     if urlsplit(url).scheme == "http":
-        print("WARNING: HTTP sends your Jira user ID and password without encryption. This exception applies only to this run.", file=sys.stderr)
+        print("경고: HTTP 연결은 Jira 사용자 ID와 비밀번호를 암호화 없이 전송합니다.", file=sys.stderr)
     email = email if email is not None else input("Jira user ID: ").strip()
     # getpass must fail rather than fall back to visible input.
     with warnings.catch_warnings():
