@@ -9,6 +9,7 @@ import threading
 from jira_credentials import Credentials
 from jira_dashboard_service import build_report
 from jira_dashboard_ui import dashboard_html
+from jira_inputs import load_inputs, save_inputs
 from jira_issue_monthly import TZ
 from jira_paths import D_OUTPUTS
 from jira_projects import fetch_projects
@@ -57,7 +58,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.respond(403, {'error': 'Untrusted host.'})
         elif self.path == '/':
             self.respond(200, dashboard_html(self.server.session, ' '.join(self.server.projects),
-                                            self.server.reporters, self.server.current_year), 'text/html')
+                                            self.server.reporters, self.server.current_year, load_inputs()), 'text/html')
         else:
             self.respond(404, {'error': 'Not found.'})
 
@@ -81,7 +82,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
         if self.path == '/api/output':
             self.save_output()
             return
-        if self.path not in ('/api/report', '/api/projects', '/api/reporters', '/api/shutdown'):
+        if self.path not in ('/api/report', '/api/projects', '/api/reporters', '/api/inputs', '/api/shutdown'):
             self.discard_body()
             self.respond(404, {'error': 'Not found.'})
             return
@@ -108,6 +109,18 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 else:
                     self.server.project_names = {project['key']: project['name'] for project in projects}
                     self.respond(200, {'projects': projects})
+                return
+            if self.path == '/api/inputs':
+                if not isinstance(payload, dict) or set(payload) != {'values'}:
+                    raise ValueError
+                try:
+                    save_inputs(payload['values'])
+                except ValueError:
+                    self.respond(400, {'error': 'Invalid dashboard inputs.'})
+                except OSError:
+                    self.respond(500, {'error': 'Could not save the dashboard inputs.'})
+                else:
+                    self.respond(200, {'saved': True})
                 return
             if self.path == '/api/reporters':
                 if not isinstance(payload, dict) or set(payload) != {'query'}:

@@ -41,6 +41,7 @@ const form=document.getElementById('query-form');
 form.elements=['year','projects','reporters','query-button'].map(id=>document.getElementById(id));
 let failure=false;const requests=[];
 const context=vm.createContext({document,setTimeout,clearTimeout,navigator:{language:'en'},localStorage:{getItem(){return null},setItem(){}},matchMedia(){return {matches:false}},getComputedStyle(){return {getPropertyValue(key){return ({'--created':'#bd2944','--resolved':'#16714d','--grid':'#d2dce8','--muted':'#405674'})[key]||'#e8edf8'}}},async fetch(url,options){
+if(url==='/api/inputs')return {ok:true,async json(){return {saved:true}}};
 if(url==='/api/reporters')return {ok:true,async json(){return {reporters:[{name:'sample',displayName:'Sample User'}]}}};
 if(url==='/api/projects')return {ok:true,async json(){return {projects:[{key:'DEMO',name:'Quality team'},{key:'OTHER',name:'Other team'}]}}};
 const payload=JSON.parse(options.body);requests.push(payload);

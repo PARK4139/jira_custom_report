@@ -1,4 +1,13 @@
-function preference(key,fallback){try{return localStorage.getItem('jira-'+key)||fallback}catch{return fallback}}
+// Inputs live in localStorage and are mirrored to the git-ignored .local/inputs.json through the server, so they also
+// survive a restart on a different port (a new origin starts with an empty localStorage). localStorage wins when both exist.
+const SAVED_INPUTS=['year','projects','reporters','period','locale','theme'];
+function preference(key,fallback){
+let value=null;
+try{value=localStorage.getItem('jira-'+key)}catch{}
+if(value)return value;
+const saved=config.saved&&config.saved[key];
+return typeof saved==='string'&&saved?saved:fallback;
+}
 let locale=preference('locale',(navigator.language||'en').startsWith('ko')?'ko':'en');
 if(!messages[locale])locale='en';
 let theme=preference('theme','light');
@@ -6,7 +15,13 @@ if(!['light','dark'].includes(theme))theme='light';
 let statusKey='idle',statusValues={},statusError='',loadedFilters=null;
 function t(key,values={}){return Object.entries(values).reduce((text,[key,value])=>text.replaceAll('{'+key+'}',String(value)),messages[locale][key]||key)}
 function setStatus(key,values={},error=''){statusKey=key;statusValues=values;statusError=error;status.textContent=t(key,values)+(error?' '+error:'')}
-function remember(key,value){try{localStorage.setItem('jira-'+key,value)}catch{}}
+let inputSyncTimer;
+function remember(key,value){try{localStorage.setItem('jira-'+key,value)}catch{}clearTimeout(inputSyncTimer);inputSyncTimer=setTimeout(syncInputs,400)}
+async function syncInputs(){
+const values={};
+for(const key of SAVED_INPUTS){const value=preference(key,'');if(value)values[key]=value}
+try{await fetch('/api/inputs',{method:'POST',headers:{'Content-Type':'application/json','X-Session-Token':config.session},body:JSON.stringify({values})})}catch{}
+}
 function colorChart(){
  const css=getComputedStyle(document.documentElement),colors={created:css.getPropertyValue('--created').trim(),resolved:css.getPropertyValue('--resolved').trim()};
  for(const line of byId('grid').children)line.setAttribute('stroke',css.getPropertyValue('--grid').trim());

@@ -9,6 +9,8 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from datetime import date
+from pathlib import Path
+import tempfile
 
 from jira_credentials import Credentials
 from jira_periods import PERIODS, period_ranges
@@ -16,10 +18,17 @@ import jira_issue_monthly as report
 import jira_dashboard_server as web
 import jira_dashboard_service as service
 import jira_dashboard_cli as cli
+import jira_inputs
 
 
 class DashboardTests(unittest.TestCase):
     def setUp(self):
+        saved_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(saved_dir.cleanup)
+        self.saved_file = Path(saved_dir.name) / 'inputs.json'
+        patcher = patch.object(jira_inputs, 'F_INPUTS', self.saved_file)
+        patcher.start()
+        self.addCleanup(patcher.stop)
         self.credentials = Credentials('https://jira.internal/jira', 'sample-user', 'synthetic-server-secret')
         self.server = web.DashboardServer(self.credentials, ['DEMO'], ['sample-reporter'])
         self.thread = threading.Thread(target=lambda: self.server.serve_forever(poll_interval=.01), daemon=True)
@@ -93,6 +102,58 @@ class DashboardTests(unittest.TestCase):
             code, _, body = self.request({'query': 'par'}, path='/api/reporters')
         self.assertEqual(code, 500)
         self.assertNotIn(self.credentials.token, body)
+
+    SAVED = {'year': '2024', 'period': 'yearly', 'locale': 'en', 'theme': 'dark',
+             'projects': '["OTHER"]', 'reporters': '[{"value": "parkjh", "label": "박정훈 (parkjh)"}]'}
+
+    def test_inputs_endpoint_saves_to_a_file_and_rejects_untrusted_or_invalid_values(self):
+        code, _, body = self.request({'values': self.SAVED}, path='/api/inputs')
+        self.assertEqual((code, json.loads(body)), (200, {'saved': True}))
+        self.assertEqual(json.loads(self.saved_file.read_text(encoding='utf-8')), self.SAVED)
+        self.assertNotIn(self.credentials.token, self.saved_file.read_text(encoding='utf-8'))
+        self.assertEqual(self.request({'values': {}}, path='/api/inputs', **{'X-Session-Token': 'bad'})[0], 403)
+        self.assertEqual(self.request({'values': {}}, path='/api/inputs', Origin='https://evil.example')[0], 403)
+        for values in ({'token': 'x'}, {'theme': 'blue'}, {'year': 2024}, {'year': '20x4'}, {'period': 'daily'},
+                       {'projects': 'not json'}, {'projects': '{"a": 1}'}, {'reporters': '[{"value": "a"}]'},
+                       {'projects': json.dumps(['x'] * 101)}, {'projects': json.dumps(['x' * 201])},
+                       {'reporters': json.dumps(['a\nb'])}, {'locale': 'ko' * 20000}):
+            with self.subTest(values=str(values)[:40]):
+                self.assertEqual(self.request({'values': values}, path='/api/inputs')[0], 400)
+        for payload in ({}, {'values': {}, 'extra': 1}, {'values': []}):
+            self.assertEqual(self.request(payload, path='/api/inputs')[0], 400)
+        self.assertEqual(json.loads(self.saved_file.read_text(encoding='utf-8')), self.SAVED, 'rejected values never overwrite the file')
+
+    def test_saved_inputs_are_embedded_in_the_page_and_survive_a_restart_on_another_port(self):
+        self.assertEqual(self.request({'values': self.SAVED}, path='/api/inputs')[0], 200)
+        _, _, page = self.request()
+        self.assertIn('"year": "2024"', page)
+        self.assertIn('parkjh', page)
+        self.assertNotIn(self.credentials.token, page)
+        old_origin = self.server.origin
+        self.close_server()
+        self.server = web.DashboardServer(self.credentials, ['DEMO'], ['sample-reporter'])
+        self.thread = threading.Thread(target=lambda: self.server.serve_forever(poll_interval=.01), daemon=True)
+        self.thread.start()
+        self.assertNotEqual(self.server.origin, old_origin, 'a new origin means a new, empty localStorage')
+        _, _, restarted = self.request()
+        self.assertIn('"year": "2024"', restarted)
+        self.assertIn(r'\ubc15\uc815\ud6c8 (parkjh)', restarted, 'the reporter chip name and ID come back after a restart')
+
+    def test_missing_or_corrupt_saved_file_still_loads_the_page(self):
+        self.assertIn('"saved": {}', self.request()[2])
+        self.saved_file.write_text('{not json', encoding='utf-8')
+        self.assertEqual(self.request()[0], 200)
+        self.saved_file.write_text(json.dumps({'theme': 'blue'}), encoding='utf-8')
+        self.assertIn('"saved": {}', self.request()[2])
+        self.saved_file.write_text(json.dumps(self.SAVED), encoding='utf-8')
+        self.assertIn('"theme": "dark"', self.request()[2])
+
+    def test_saved_values_cannot_break_out_of_the_page_script(self):
+        values = {'reporters': json.dumps(['</script><script>alert(1)</script>'])}
+        self.assertEqual(self.request({'values': values}, path='/api/inputs')[0], 200)
+        page = self.request()[2]
+        self.assertNotIn('</script><script>alert(1)', page)
+        self.assertIn('\\u003c/script\\u003e', page)
 
     def test_year_change_queries_correct_jql_for_every_period_and_combines_projects(self):
         def collect(projects, year, reporters, credentials):

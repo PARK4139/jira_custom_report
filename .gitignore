@@ -19,6 +19,9 @@ jira_reports/
 *_2week_issues.csv
 *_yearly_issues.csv
 
+# Saved dashboard inputs (projects, reporters, year, language, theme) stay local; .local/ is ignored as a whole
+.local/inputs.json
+
 # Native JQL log contains internal project/reporter identifiers
 logs/
 

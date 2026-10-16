@@ -27,8 +27,9 @@ const document={documentElement:new Element(),getElementById(id){if(!elements.ha
 const form=document.getElementById('query-form');
 form.elements=['year','projects','reporters'].map(id=>document.getElementById(id));
 const store=new Map(),timers=new Map();let timerId=0,failure=false,holdNext=false,finishHeld;
-const requests=[],reporterSearches=[];
+const requests=[],reporterSearches=[],inputSyncs=[];
 const context=vm.createContext({document,navigator:{language:'en'},localStorage:{getItem(key){return store.has(key)?store.get(key):null},setItem(key,value){store.set(key,String(value))}},matchMedia(){return {matches:false}},getComputedStyle(){return {getPropertyValue(){return '#e8edf8'}}},setTimeout(fn){timers.set(++timerId,fn);return timerId},clearTimeout(id){timers.delete(id)},async fetch(url,options){
+if(url==='/api/inputs'){inputSyncs.push(JSON.parse(options.body).values);return {ok:true,async json(){return {saved:true}}}}
 if(url==='/api/reporters'){reporterSearches.push(JSON.parse(options.body).query);return {ok:true,async json(){return {reporters:[{name:'parkjh',displayName:'박정훈'},{name:'kimsh',displayName:'김선희'}]}}}}
 if(url==='/api/projects')return {ok:true,async json(){return {projects:[{key:'DEMO',name:'Quality team'},{key:'OTHER',name:'Platform team'}]}}};
 const payload=JSON.parse(options.body);requests.push(payload);
@@ -62,6 +63,7 @@ const searchBase=reporterSearches.length;elements.get('reporters').value='박';f
 const completion={key:'Tab',preventDefault(){completion.prevented=true}};for(const fn of elements.get('reporters').handlers.keydown)fn(completion);
 assert.equal(completion.prevented,true);assert.equal(elements.get('reporters').value,'','Tab turns the candidate into a chip');const labels=JSON.parse(vm.runInContext('JSON.stringify(reportersField.values.map(chip=>chip.label))',context));assert.equal(labels.at(-1),'박정훈 (parkjh)','the chip shows both the name and the employee ID');await flush();assert.deepEqual(requests.at(-1).reporters,['이민수','박민호','parkjh'],'completed reporter triggers the report');
 entry('reporters','김선희');await flush();assert.equal(chipValues('reporters').at(-1),'kimsh','a typed name that identifies one Jira user becomes that user chip');assert.equal(JSON.parse(vm.runInContext('JSON.stringify(reportersField.values.map(chip=>chip.label))',context)).at(-1),'김선희 (kimsh)');
+await flush();assert.ok(inputSyncs.length>0,'inputs are mirrored to the server');const lastSync=inputSyncs.at(-1);assert.equal(lastSync.year,'2024');assert.deepEqual(JSON.parse(lastSync.projects),['OTHER']);assert.ok(JSON.parse(lastSync.reporters).some(chip=>chip.value==='parkjh'&&chip.label==='박정훈 (parkjh)'),'reporter chips keep name and ID in the saved copy');assert.equal(lastSync.period,'yearly');
 console.log('PASS: dropdown-only automatic load, project/year refresh, local period changes, debounce, serialized requests, stale response rejection, empty selection, and recovery.');
 }
 main().catch(error=>{console.error(error);process.exitCode=1});

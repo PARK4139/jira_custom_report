@@ -1,5 +1,7 @@
 
 const config=WEB_CONFIG;
+// Restore the inputs saved on disk into localStorage when this origin has none (for example after a restart on a new port).
+for(const [key,value] of Object.entries(config.saved||{}))if(typeof value==='string'&&value){try{if(!localStorage.getItem('jira-'+key))localStorage.setItem('jira-'+key,value)}catch{}}
 const yearSelect=byId('year'), form=byId('query-form'), status=byId('query-status');
 for(let year=config.currentYear+1;year>=1970;year--){const option=document.createElement('option');option.value=String(year);option.textContent=year;yearSelect.append(option)}
 // Filters are remembered per browser origin; preference()/remember() live in preferences.js (hoisted).

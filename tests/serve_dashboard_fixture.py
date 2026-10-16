@@ -4,6 +4,7 @@ import argparse
 from jira_credentials import Credentials
 from datetime import date, timedelta
 import jira_dashboard_server
+import jira_inputs
 from jira_web import DashboardServer
 from pathlib import Path
 
@@ -31,7 +32,8 @@ if __name__ == "__main__":
     parser.add_argument('--port', type=int, default=0)
     args = parser.parse_args()
     output_dir = Path('.local/ui-verification/fixture-outputs').resolve()
-    with patch("jira_dashboard_server.D_OUTPUTS", output_dir), patch(
+    inputs_file = Path('.local/ui-verification/fixture-inputs.json').resolve()
+    with patch.object(jira_inputs, "F_INPUTS", inputs_file), patch("jira_dashboard_server.D_OUTPUTS", output_dir), patch(
             "jira_dashboard_service.fetch_year_issues", side_effect=collect), patch(
             "jira_dashboard_server.fetch_projects", return_value=[
                 {"key": "DEMO", "name": "Demo team"}, {"key": "HTG", "name": "Hotel group"},

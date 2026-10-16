@@ -16,9 +16,11 @@ async function waitFor(action, label) {
 async function main() {
   await fs.mkdir(output, {recursive: true});
   const profile = await fs.mkdtemp(path.join(output, 'chrome-profile-'));
+  const inputsFile = path.join(output, 'fixture-inputs.json');
+  await fs.rm(inputsFile, {force: true}); // start with no saved inputs
   const fixture = spawn(path.join(root, '.venv', 'Scripts', 'python.exe'),
     ['-c', "import runpy; runpy.run_path('tests/serve_dashboard_fixture.py', run_name='__main__')"], {cwd: root, windowsHide: true});
-  let origin = '', chrome, client;
+  let origin = '', chrome, client, restarted;
   fixture.stdout.on('data', chunk => origin += chunk.toString());
   fixture.stderr.on('data', chunk => process.stderr.write(chunk));
   try {
@@ -136,9 +138,30 @@ async function main() {
     await key('Escape', 'Escape', 27);
     assert.equal(await evaluate("document.getElementById('projects').parentElement.querySelector('.combo-list').hidden"), true);
 
+    // Persistence: every input is mirrored to the git-ignored file, and a restart on another port (new origin, empty localStorage) restores it.
+    await waitFor(async () => { try { const saved = JSON.parse(await fs.readFile(inputsFile, 'utf8')); return saved.projects === '["HTG","OTHER"]' && JSON.parse(saved.reporters).length === 2; } catch { return false; } }, 'inputs saved to disk');
+    const saved = JSON.parse(await fs.readFile(inputsFile, 'utf8'));
+    assert.deepEqual(JSON.parse(saved.reporters), [{value: 'parkjh', label: '박정훈 (parkjh)'}, {value: 'kimsh', label: '김선희 (kimsh)'}], 'the file keeps each reporter name and ID');
+    assert.ok(!JSON.stringify(saved).includes('synthetic-secret') && !JSON.stringify(saved).includes('jira.invalid'), 'no credentials or URLs are saved');
+    assert.equal(await evaluate("localStorage.getItem('jira-projects')"), '["HTG","OTHER"]', 'localStorage holds the same values');
+    restarted = spawn(path.join(root, '.venv', 'Scripts', 'python.exe'),
+      ['-c', "import runpy; runpy.run_path('tests/serve_dashboard_fixture.py', run_name='__main__')"], {cwd: root, windowsHide: true});
+    let secondOrigin = '';
+    restarted.stdout.on('data', chunk => secondOrigin += chunk.toString());
+    restarted.stderr.on('data', chunk => process.stderr.write(chunk));
+    await waitFor(() => secondOrigin.includes('\n'), 'restarted fixture ready'); secondOrigin = secondOrigin.trim();
+    assert.notEqual(secondOrigin, origin, 'the restart uses a different port, so the browser origin changes');
+    reportBodies.length = 0;
+    await send('Page.navigate', {url: secondOrigin});
+    await waitFor(() => evaluate("typeof hasResults!=='undefined' && document.getElementById('projects').disabled===false && !document.getElementById('report-panel').hidden"), 'report after restart');
+    assert.deepEqual(await chips('projects'), ['Hotel group (HTG)', 'Platform team (OTHER)'], 'projects survive the restart');
+    assert.deepEqual(await chips('reporters'), ['박정훈 (parkjh)', '김선희 (kimsh)'], 'reporters survive the restart with name and ID');
+    assert.equal(reportBodies.at(-1).projects.join(), 'HTG,OTHER'); assert.equal(reportBodies.at(-1).reporters.join(), 'parkjh,kimsh');
+    assert.equal(await evaluate("localStorage.getItem('jira-projects')"), '["HTG","OTHER"]', 'the new origin localStorage is seeded from the file');
+
     assert.deepEqual(exceptions, []);
-    console.log('PASS: actual Chrome, click lists Jira candidates, typing queries Jira, skim-style matching, chips with name and ID for every selected project and reporter, Tab/Enter completion, Backspace/x removal, and Ctrl+Space.');
+    console.log('PASS: actual Chrome, click lists Jira candidates, typing queries Jira, skim-style matching, chips with name and ID for every selected project and reporter, Tab/Enter completion, Backspace/x removal, Ctrl+Space, and inputs restored from disk after a restart on another port.');
     try { await send('Browser.close'); } catch {}
-  } finally { client?.close(); chrome?.kill(); fixture.kill(); }
+  } finally { client?.close(); chrome?.kill(); fixture.kill(); restarted?.kill(); }
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });
