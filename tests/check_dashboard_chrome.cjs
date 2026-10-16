@@ -51,7 +51,7 @@ async function main(){
       check(document.documentElement.dataset.theme==='light','white theme is the default');
       change('locale','ko');setTheme('dark');change('year','2026');
       await until(()=>hasResults);
-      check(byId('report-title').textContent.includes('비율'),'Korean title');
+      check(byId('period-heading').textContent.includes('누적'),'Korean section heading');
       for(const [period,count]of Object.entries({'1week':53,monthly:12,yearly:1})){
         change('period-select',period);check(byId('project-graphs').querySelectorAll('table tr').length===count+1,'period rows '+period);
       }

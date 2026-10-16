@@ -1,6 +1,6 @@
 // Inputs live in localStorage and are mirrored to the git-ignored .local/inputs.json through the server, so they also
 // survive a restart on a different port (a new origin starts with an empty localStorage). localStorage wins when both exist.
-const SAVED_INPUTS=['year','projects','reporters','period','locale','theme'];
+const SAVED_INPUTS=['year','projects','reporters','period','mode','locale','theme'];
 function preference(key,fallback){
 let value=null;
 try{value=localStorage.getItem('jira-'+key)}catch{}
@@ -45,14 +45,16 @@ function translateReport(){
  byId('footer-text').textContent=t('footer');
  for(const option of byId('period-select').options)option.textContent=messages[locale].periods[option.value];
  const rows=datasets[activePeriod]||[];
- byId('period-heading').textContent=messages[locale].periods[activePeriod]+' · '+t('title');
- byId('period-note').textContent=t('note',{buckets:rows.length,count:rows.length*2});
+ byId('period-heading').textContent=messages[locale].periods[activePeriod]+' · '+t(calcMode==='periodic'?'titlePeriodic':'title');
+ byId('period-note').textContent=t(calcMode==='periodic'?'notePeriodic':'note',{buckets:rows.length,count:rows.length*2});
  document.querySelectorAll('table').forEach(table=>table.querySelectorAll('th').forEach((node,i)=>node.textContent=[t('range'),t('created'),t('resolved'),'JQL'][i]));
  document.querySelectorAll('summary:not([data-text])').forEach(node=>node.textContent=t('view'));
  document.querySelectorAll('[data-ratio]').forEach(node=>node.textContent=t('ratio')+': '+node.dataset.ratio);
  document.querySelectorAll('[data-metric]').forEach(node=>node.textContent=t(node.dataset.metric)+': '+Number(node.dataset.count).toLocaleString(locale)+'   ');
  document.querySelectorAll('.legend span').forEach((node,i)=>node.textContent=t(i?'resolved':'created'));
- document.querySelector('svg').setAttribute('aria-label',t('title'));
+ document.querySelector('svg').setAttribute('aria-label',t(calcMode==='periodic'?'titlePeriodic':'title'));
+ for(const option of [...(byId('calc-mode').options||[])])option.textContent=messages[locale].modes[option.value];
+ document.querySelectorAll('svg title[data-period-field]').forEach(node=>node.textContent=node.dataset.periodStart+' / '+node.dataset.periodEnd+' '+t(node.dataset.periodField)+': '+Number(node.dataset.periodValue).toLocaleString(locale));
  document.querySelectorAll('svg title[data-cumulative-field]').forEach(node=>node.textContent=node.dataset.periodStart+' / '+node.dataset.periodEnd+' '+t('cumulative')+' '+t(node.dataset.cumulativeField)+': '+Number(node.dataset.cumulativeValue).toLocaleString(locale));
  byId('report-title').textContent=t('heading',{year:loadedFilters?loadedFilters.year:config.currentYear,period:activePeriod});document.title=byId('report-title').textContent;
  byId('period-select').value=activePeriod;

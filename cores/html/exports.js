@@ -15,7 +15,7 @@ async function exportJpg(){
   text(messages[locale].periods[activePeriod]);text(t('projects')+': '+loadedFilters.projects.join(', '));text(t('reporters')+': '+loadedFilters.reporters.join(', '));
   const rows=datasets[activePeriod],{created,resolved}=cumulativeTotals(rows);
   text(t('created')+': '+created+'    '+t('resolved')+': '+resolved+'    '+t('ratio')+': '+(created?(resolved/created*100).toFixed(1)+'%':'—'));
-  text(t('note',{buckets:rows.length,count:rows.length*2}));
+  text(t(calcMode==='periodic'?'notePeriodic':'note',{buckets:rows.length,count:rows.length*2}));
   const chartY=62+lines.length*42+24;
   const charts=[...document.querySelectorAll('.project-report')].map(section=>({title:section.querySelector('h3').textContent,svg:section.querySelector('svg')}));
   if(!charts.length)charts.push({title:'',svg:document.querySelector('svg')});

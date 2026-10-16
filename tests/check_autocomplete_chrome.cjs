@@ -63,19 +63,19 @@ async function main() {
     assert.deepEqual(await evaluate("[...document.getElementById('period-select').options].map(option=>option.textContent)"),
       ['일간', '주간', '월간', '분기간', '연간'], 'period options, in Korean');
     await setSelect('period-select', 'quarterly');
-    await waitFor(() => evaluate("document.getElementById('report-title').textContent.includes('quarterly')"), 'quarterly title');
+    await waitFor(() => evaluate("document.getElementById('period-heading').textContent.includes('분기간') && document.querySelectorAll('#project-graphs .project-report table tr').length===5"), 'quarterly heading and rows');
     assert.equal(await evaluate("document.querySelectorAll('#project-graphs .project-report table tr').length"), 5, 'four quarters plus the header');
     const quarterValues = await evaluate("[...document.querySelectorAll('#project-graphs .project-report svg title[data-cumulative-field=created]')].map(node=>Number(node.dataset.cumulativeValue))");
     assert.equal(quarterValues.length, 4);
     assert.ok(quarterValues.every((value, index) => index === 0 || value >= quarterValues[index - 1]), 'cumulative from January 1');
     await setSelect('period-select', 'daily');
-    await waitFor(() => evaluate("document.getElementById('report-title').textContent.includes('daily')"), 'daily title');
+    await waitFor(() => evaluate("document.getElementById('period-heading').textContent.includes('일간') && document.querySelectorAll('#project-graphs .project-report table tr').length===366"), 'daily heading and rows');
     assert.equal(await evaluate("document.querySelectorAll('#project-graphs .project-report table tr').length"), 366, 'one row per day of 2026 plus the header');
     const dailyShot = await send('Page.captureScreenshot', {format: 'png'});
     await fs.writeFile(path.join(output, 'daily.png'), Buffer.from(dailyShot.data, 'base64'));
     await setSelect('period-select', 'monthly');
     await setSelect('locale', 'en');
-    await waitFor(() => evaluate("document.getElementById('report-title').textContent.includes('monthly')"), 'back to monthly');
+    await waitFor(() => evaluate("document.getElementById('period-heading').textContent.includes('Monthly')"), 'back to monthly');
 
     // Selected values are chips; the input stays empty and the placeholder only shows when there are no chips.
     assert.deepEqual(await chips('projects'), ['Demo team (DEMO)']);

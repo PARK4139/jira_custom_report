@@ -66,7 +66,7 @@ async function main() {
     assert.equal(await page.locator('html').getAttribute('data-theme'),'light');
     await page.locator('#report-panel').waitFor();
     await page.locator('#year').selectOption('2025');
-    await page.waitForFunction(()=>document.querySelector('#report-title').textContent.includes('2025'));
+    await page.waitForFunction(()=>document.querySelector('#year').value==='2025');
     assert.equal(JSON.parse(requests.at(-1).postData()).year,2025);
     await page.locator('#reporters').fill('fail');await page.locator('#reporters').press('Tab');
     assert.equal(await page.locator('#report-panel').isVisible(),false);

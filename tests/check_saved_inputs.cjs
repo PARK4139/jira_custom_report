@@ -61,16 +61,18 @@ async function main() {
   assert.equal(a.elements.get('year').value, '2024');
   assert.equal(a.elements.get('locale').value, 'en'); assert.equal(a.context.document.documentElement.dataset.theme, 'dark');
   assert.match(a.elements.get('period-heading').textContent, /Yearly/, 'the saved period is restored');
-  for (const [key, value] of Object.entries({year: '2024', period: 'yearly', locale: 'en', theme: 'dark', projects: '["OTHER"]'})) assert.equal(a.store.get('jira-' + key), value, key + ' is seeded into localStorage');
+  assert.match(a.elements.get('period-heading').textContent, /Non-cumulative/, 'the saved output mode is restored');
+  assert.equal(a.elements.get('calc-mode').value, 'periodic');
+  for (const [key, value] of Object.entries({year: '2024', period: 'yearly', mode: 'periodic', locale: 'en', theme: 'dark', projects: '["OTHER"]'})) assert.equal(a.store.get('jira-' + key), value, key + ' is seeded into localStorage');
   assert.ok(JSON.parse(a.store.get('jira-reporters')).some(chip => chip.value === 'parkjh'));
 
   // Every later change is mirrored to the server with all inputs, so a restart keeps the latest values.
   a.elements.get('year').value = '2023'; for (const fn of a.elements.get('year').handlers.change) fn();
   await a.flush(); await a.flush();
   const last = a.inputSyncs.at(-1);
-  assert.equal(last.year, '2023'); assert.equal(last.theme, 'dark'); assert.equal(last.locale, 'en'); assert.equal(last.period, 'yearly');
+  assert.equal(last.year, '2023'); assert.equal(last.theme, 'dark'); assert.equal(last.locale, 'en'); assert.equal(last.period, 'yearly'); assert.equal(last.mode, 'periodic');
   assert.deepEqual(JSON.parse(last.projects), ['OTHER']); assert.equal(JSON.parse(last.reporters)[0].label, '박정훈 (parkjh)');
-  assert.ok(Object.keys(last).every(key => ['year', 'projects', 'reporters', 'period', 'locale', 'theme'].includes(key)), 'only input values are sent');
+  assert.ok(Object.keys(last).every(key => ['year', 'projects', 'reporters', 'period', 'mode', 'locale', 'theme'].includes(key)), 'only input values are sent');
 
   // B: localStorage already has values for this origin: it wins over the server copy, per key.
   const b = await launch(withSaved, {'jira-year': '2023', 'jira-projects': '["DEMO"]'});

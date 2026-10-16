@@ -69,7 +69,8 @@ async function main() {
     // Every period works on the dummy data (the Korean labels are asserted elsewhere; here the values and row counts).
     for (const [period, rows] of Object.entries({daily: 366, '1week': 54, monthly: 13, quarterly: 5, yearly: 2})) {
       await setSelect('period-select', period);
-      await waitFor(() => evaluate(`document.getElementById('report-title').textContent.includes('${period}')`), 'title for ' + period);
+      const label = {daily: ['Daily', '일간'], '1week': ['Weekly', '주간'], monthly: ['Monthly', '월간'], quarterly: ['Quarterly', '분기간'], yearly: ['Yearly', '연간']}[period];
+      await waitFor(() => evaluate(`${JSON.stringify(label)}.some(text => document.getElementById('period-heading').textContent.includes(text))`), 'heading for ' + period);
       assert.ok([rows, rows - 1].includes(await evaluate("document.querySelectorAll('#project-graphs .project-report table')[0].querySelectorAll('tr').length")), period + ' rows');
     }
     await setSelect('period-select', 'monthly');

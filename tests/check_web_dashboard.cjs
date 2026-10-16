@@ -65,8 +65,8 @@ elements.get('year').value=String(year);
 await vm.runInContext('loadReport()',context);
 assert.equal(requests.at(-1).year,year);
 assert.deepEqual(requests.at(-1).projects,['DEMO','OTHER']);
-assert.ok(elements.get('report-title').textContent.includes('ISSUE Resolved/Created'));
-assert.ok(elements.get('report-title').textContent.includes(String(year)));
+assert.equal(elements.get('report-title').textContent,'ISSUE STATISTICS WITH JIRA API','the page title is fixed text');
+assert.ok(elements.get('period-heading').textContent.length>0);
 assert.equal(elements.get('report-panel').hidden,false);
 assert.equal(elements.get('project-graphs').children.length,2);
 assert.equal(elements.get('project-graphs').children[0].children[0].textContent,'Quality team (DEMO)');
@@ -112,11 +112,35 @@ assert.deepEqual(quarterPoints.slice(0,4).map(point=>point.children[0].dataset.c
 assert.deepEqual(quarterPoints.slice(4).map(point=>point.children[0].dataset.cumulativeValue),['1','3','4','6'],'resolved accumulates over Q1..Q4');
 assert.equal(quarterProject.querySelectorAll('text').filter(node=>node.dataset.ratio)[0].dataset.ratio,'42.9%','ratio is cumulative resolved / created (6 / 14)');
 assert.equal(quarterProject.querySelector('table').children.length,5,'one table row per quarter plus the header');
-assert.match(elements.get('report-title').textContent,/quarterly ISSUE/,'the title names the period');
+assert.match(elements.get('period-heading').textContent,/Quarterly|분기간/,'the section heading names the period');
 elements.get('period-select').value='daily';for(const handler of elements.get('period-select').handlers.change)handler();
 const dailyProject=elements.get('project-graphs').children[0];
 assert.deepEqual(dailyProject.querySelectorAll('circle').slice(0,3).map(point=>point.children[0].dataset.cumulativeValue),['2','3','6'],'daily created accumulates day by day');
-assert.match(elements.get('report-title').textContent,/daily ISSUE/);
+assert.match(elements.get('period-heading').textContent,/Daily|일간/);
+// Output mode: non-cumulative plots each period's own counts and relabels heading, note, and tooltip; switching never queries Jira.
+{
+const queriesBefore=requests.length,change=value=>{elements.get('calc-mode').value=value;for(const handler of elements.get('calc-mode').handlers.change)handler()};
+const periodRows=JSON.parse(vm.runInContext("JSON.stringify(loadedProjectReports[0].datasets[activePeriod])",context));
+const pointsOf=(project,key)=>project.querySelectorAll('circle').slice(0,periodRows.length).map(circle=>circle.children[0].dataset[key]);
+const cumulativeBefore=pointsOf(elements.get('project-graphs').children[0],'cumulativeValue');
+assert.ok(cumulativeBefore.every(value=>value!==undefined),'cumulative is the default mode');
+change('periodic');
+let project=elements.get('project-graphs').children[0];
+assert.deepEqual(pointsOf(project,'periodValue').map(Number),periodRows.map(row=>row.created),'each point is each period own created count');
+assert.ok(pointsOf(project,'cumulativeValue').every(value=>value===undefined),'no running totals in non-cumulative mode');
+assert.match(elements.get('period-heading').textContent,/Non-cumulative|비누적/);
+assert.doesNotMatch(elements.get('period-note').textContent,/cumulative counts|누적 \//,'the note describes per-period counts');
+const capture=project.querySelector('svg').querySelector('rect'),tip=project.children.find(node=>node.className==='chart-tip');
+capture.handlers.pointermove[0]({clientX:1037,clientY:120});
+const periodTip=tip.children.map(node=>node.textContent).join(' | ');
+assert.ok(periodTip.includes(String(periodRows.at(-1).created)),'the tooltip shows the hovered period own count');
+assert.doesNotMatch(periodTip,/Cumulative|누적/,'no running total in the non-cumulative tooltip');
+assert.equal(requests.length,queriesBefore,'switching the output mode does not query Jira');
+change('cumulative');
+project=elements.get('project-graphs').children[0];
+assert.deepEqual(pointsOf(project,'cumulativeValue'),cumulativeBefore,'back to the same cumulative points');
+assert.doesNotMatch(elements.get('period-heading').textContent,/Non-cumulative|비누적/);
+}
 const koPeriods=JSON.parse(vm.runInContext("JSON.stringify(['daily','1week','monthly','quarterly','yearly'].map(period=>messages.ko.periods[period]))",context));
 assert.deepEqual(koPeriods,['일간','주간','월간','분기간','연간'],'Korean period names');
 assert.deepEqual(JSON.parse(vm.runInContext("JSON.stringify(Object.keys(messages.ko.periods))",context)).filter(key=>/^q\d$/.test(key)),[],'the separate 1-4 quarter options are gone');

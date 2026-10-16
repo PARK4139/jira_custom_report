@@ -25,6 +25,7 @@ body{max-width:none;margin:0;padding:0;background:var(--page);color:var(--ink);f
 #query-form{display:grid;gap:14px;margin:0}
 #query-form label,#period-controls{display:grid;gap:4px;color:var(--muted);font-size:12px;font-weight:600}
 #period-controls{margin:14px 0 0}
+#period-controls select+label{margin-top:10px}
 .controls select,.controls input{width:100%;max-width:100%;padding:7px 8px;font:inherit;font-weight:400;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:3px}
 .controls select[multiple]{padding:2px;min-height:120px}
 .controls select:hover,.controls input:hover{background:var(--page)}

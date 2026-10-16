@@ -98,6 +98,30 @@ class DemoServerTests(unittest.TestCase):
         self.assertTrue(0 < total(one) < total(everyone))
         self.assertEqual(total(nobody), 0)
 
+    def test_projects_differ_instead_of_following_one_uniform_pattern(self):
+        """Each dummy project has its own volume curve, resolution rate and delay, and reporters file unevenly."""
+        from collections import Counter
+        keys = [key for key, _, _ in demo.PROJECTS]
+        stats = {}
+        for key, _, scale in demo.PROJECTS:
+            issues = demo._issues(key, 2025, scale)
+            months = Counter(created.month for _, created, _ in issues if created.year == 2025)
+            monthly = [months[month] for month in range(1, 13)]
+            resolved = [(resolved - created).days for _, created, resolved in issues if resolved]
+            reporters = Counter(reporter for reporter, _, _ in issues)
+            stats[key] = {
+                "swing": max(monthly) / max(1, min(monthly)),
+                "rate": len(resolved) / len(issues),
+                "lag": sum(resolved) / len(resolved),
+                "top_share": max(reporters.values()) / len(issues),
+            }
+        for metric, spread in (("rate", .15), ("lag", 10)):
+            values = [stat[metric] for stat in stats.values()]
+            self.assertGreater(max(values) - min(values), spread, f"{metric} is nearly the same for every project")
+        self.assertGreater(sum(stat["swing"] > 1.8 for stat in stats.values()), len(keys) // 2, "months are too even")
+        self.assertGreater(max(stat["top_share"] for stat in stats.values()), 1.6 / len(demo.USERS), "reporters share equally")
+        self.assertEqual(demo._issues("ATLAS", 2025, 900), demo._issues("ATLAS", 2025, 900), "still deterministic")
+
     def test_no_dummy_issue_is_dated_in_the_future(self):
         today = datetime.now(jira_issue_monthly.TZ).date()
         records, _ = demo.fetch_year_issues(["ATLAS", "HELIX"], today.year, demo.DEFAULT_REPORTERS, None)

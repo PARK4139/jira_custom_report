@@ -37,22 +37,72 @@ DEFAULT_PROJECTS = ["ATLAS", "NOVA", "HELIX"]
 DEFAULT_REPORTERS = [user for user, _ in USERS]
 
 
+def _poisson(generator: random.Random, lam: float) -> int:
+    if lam <= 0:
+        return 0
+    if lam > 30:
+        return max(0, round(generator.gauss(lam, lam ** .5)))
+    limit, product, count = pow(2.718281828459045, -lam), generator.random(), 0
+    while product > limit:
+        count += 1
+        product *= generator.random()
+    return count
+
+
+def _profile(key: str, year: int, days: int) -> dict:
+    """The character of one dummy project, fixed by its key and year so every run shows the same data."""
+    generator = random.Random(f"profile:{year}:{key}")
+    weights = [generator.random() ** 2 + .04 for _ in USERS]  # a few reporters file most of the issues
+    return {
+        "trend": generator.uniform(-.45, .65),  # creation grows or shrinks over the year
+        "spikes": [(generator.randrange(15, days - 10), generator.uniform(1.4, 3.6), generator.randint(3, 10))
+                   for _ in range(generator.randint(1, 3))],  # release and incident bursts: (day, extra height, width)
+        "quiet": (generator.randrange(20, days - 30), generator.randint(6, 14), generator.uniform(.25, .6)),  # a holiday lull
+        "resolve_rate": generator.uniform(.5, .95),  # share of issues that get closed at all
+        "rate_drift": generator.uniform(-.3, .15),  # closing capacity falls (debt builds) or recovers over the year
+        "lag_mean": generator.uniform(5, 42),  # days to close
+        "sprint": generator.choice([7, 14, 14, 21]), "sprint_offset": generator.randrange(21),
+        "sprint_batch": generator.uniform(.15, .7),  # share of issues closed together at the sprint end
+        "users": [user for user, _ in USERS], "weights": weights,
+    }
+
+
 def _issues(key: str, year: int, scale: int):
     """Deterministic dummy issues of one project: (reporter, created date, resolved date or None)."""
-    generator = random.Random(f"{year}:{key}")
+    days = (date(year + 1, 1, 1) - date(year, 1, 1)).days
+    profile, generator = _profile(key, year, days), random.Random(f"{year}:{key}")
     today = datetime.now(TZ).date()
+    window = range(-92, days)  # the last quarter of the previous year can still be resolved this year
+
+    def activity(day: int) -> float:
+        value = 1 + profile["trend"] * (day / days - .5)
+        for center, height, width in profile["spikes"]:
+            value += height * pow(2.718281828459045, -((day - center) / width) ** 2 / 2)
+        start, length, factor = profile["quiet"]
+        if start <= day < start + length:
+            value *= factor
+        return max(.05, value)
+
+    mean = sum(activity(day) for day in window) / len(window)
     issues = []
-    for day in range(-92, (date(year + 1, 1, 1) - date(year, 1, 1)).days):
+    for day in window:
         created = date(year, 1, 1) + timedelta(days=day)
         if created > today:
             break
-        weekday = created.weekday()
-        base = scale / 260 * (0.25 if weekday >= 5 else 1.15)
-        busy = 1 + 0.35 * ((created.month + sum(map(ord, key))) % 4 == 0)  # a few busier months per project
-        for _ in range(int(base * busy) + (generator.random() < (base * busy) % 1)):
-            lag = int(generator.expovariate(1 / 21)) + 1
-            resolved = created + timedelta(days=lag) if generator.random() < 0.82 else None
-            issues.append((generator.choice(USERS)[0], created, resolved if resolved and resolved <= today else None))
+        weekday_factor = .22 if created.weekday() >= 5 else 1.15
+        noise = generator.lognormvariate(0, .4)
+        for _ in range(_poisson(generator, scale / 260 * weekday_factor * activity(day) / mean * noise)):
+            rate = min(.97, max(.2, profile["resolve_rate"] + profile["rate_drift"] * (day / days - .5)))
+            resolved = None
+            if generator.random() < rate:
+                lag = 1 + int(generator.expovariate(1 / profile["lag_mean"]))
+                if generator.random() < .12:  # quick fixes
+                    lag = generator.randint(0, 2)
+                resolved = created + timedelta(days=lag)
+                if generator.random() < profile["sprint_batch"]:  # closed together when the sprint ends
+                    resolved += timedelta(days=-(resolved.toordinal() + profile["sprint_offset"]) % profile["sprint"])
+            reporter = generator.choices(profile["users"], profile["weights"])[0]
+            issues.append((reporter, created, resolved if resolved and resolved <= today else None))
     return issues
 
 

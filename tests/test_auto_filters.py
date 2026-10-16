@@ -29,7 +29,7 @@ class SavedInputsTests(unittest.TestCase):
     @unittest.skipUnless(shutil.which('node'), 'Node is needed to execute frontend behavior checks')
     def test_saved_inputs_restore_seed_local_storage_and_are_mirrored(self):
         root = Path(__file__).resolve().parents[1]
-        saved = {'year': '2024', 'period': 'yearly', 'locale': 'en', 'theme': 'dark', 'projects': '["OTHER"]',
+        saved = {'year': '2024', 'period': 'yearly', 'mode': 'periodic', 'locale': 'en', 'theme': 'dark', 'projects': '["OTHER"]',
                  'reporters': '[{"value": "parkjh", "label": "박정훈 (parkjh)"}]'}
         with tempfile.TemporaryDirectory() as directory:
             with_saved, without = Path(directory) / 'saved.html', Path(directory) / 'plain.html'
