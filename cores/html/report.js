@@ -1,7 +1,7 @@
 
 const values=CHART_DATA;
 const datasets=PERIOD_DATA;
-const titles={daily:'Daily','1week':'1 week','2week':'2 weeks',monthly:'Monthly',yearly:'Yearly',quarterly:'Quarterly'};
+const titles={daily:'Daily','1week':'1 week',monthly:'Monthly',yearly:'Yearly',quarterly:'Quarterly'};
 const byId=id=>document.getElementById(id), ns='http://www.w3.org/2000/svg';
 // Every view is cumulative from January 1 of the selected year.
 function cumulativeRows(rows){
@@ -21,7 +21,7 @@ byId('period-heading').textContent=titles[period]+' Cumulative Issue Trend';
 byId('period-note').textContent='Chart: cumulative Created / Resolved from January 1 of the selected year. Table: counts for each period. '+rows.length+' periods / '+(rows.length*2)+' JQL queries. Date ranges include the start and exclude the end.';
 const {created,resolved}=cumulativeTotals(rows);
 byId('summary').replaceChildren();
-for(const [label,value] of [['Resolved / Created',created?(resolved/created*100).toFixed(1)+'%':'—']]){const item=document.createElement('span');item.textContent=label;const strong=document.createElement('strong');strong.textContent=value;item.append(strong);byId('summary').append(item)}
+for(const [label,value] of [['Resolved-to-Created Ratio',created?(resolved/created*100).toFixed(1)+'%':'—']]){const item=document.createElement('span');item.textContent=label;const strong=document.createElement('strong');strong.textContent=value;item.append(strong);byId('summary').append(item)}
 for(const id of ['grid','series','labels'])byId(id).replaceChildren();
 const L=69,R=1037,T=30,B=320,W=R-L,H=B-T,maxY=Math.max(4,Math.ceil(Math.max(1,...chartRows.flatMap(r=>[r.created,r.resolved]))/4)*4);
 const x=i=>rows.length===1?(L+R)/2:L+W*i/(rows.length-1),y=v=>B-H*v/maxY;

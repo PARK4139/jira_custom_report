@@ -171,6 +171,15 @@ class DashboardTests(unittest.TestCase):
         self.saved_file.write_text(json.dumps(self.SAVED), encoding='utf-8')
         self.assertIn('"theme": "dark"', self.request()[2])
 
+    def test_saved_period_that_no_longer_exists_does_not_discard_the_other_inputs(self):
+        self.saved_file.write_text(json.dumps({'year': '2024', 'period': '2week', 'theme': 'dark', 'token': 'x'}), encoding='utf-8')
+        page = self.request()[2]
+        self.assertIn('"year": "2024"', page)
+        self.assertIn('"theme": "dark"', page)
+        self.assertNotIn('2week', page.split('"saved":', 1)[1].split('}', 1)[0])
+        self.assertNotIn('"token"', page)
+        self.assertEqual(self.request({'values': {'period': '2week'}}, path='/api/inputs')[0], 400)
+
     def test_saved_values_cannot_break_out_of_the_page_script(self):
         values = {'reporters': json.dumps(['</script><script>alert(1)</script>'])}
         self.assertEqual(self.request({'values': values}, path='/api/inputs')[0], 200)

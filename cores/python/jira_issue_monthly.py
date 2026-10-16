@@ -175,7 +175,7 @@ def open_html_report(path: Path) -> bool:
 
 def export_main():
     parser = argparse.ArgumentParser(description="Jira Server/Data Center issue trend report")
-    parser.add_argument("--periods", nargs="+", choices=PERIODS, default=list(BASE_PERIODS), help="Reporting periods to query (default: 1week 2week monthly yearly; add quarterly or daily; daily sends two JQL queries per day)")
+    parser.add_argument("--periods", nargs="+", choices=PERIODS, default=list(BASE_PERIODS), help="Reporting periods to query (default: 1week monthly yearly; add quarterly or daily; daily sends two JQL queries per day)")
     parser.add_argument("--year", type=int, help="Report year (saved in the local profile)")
     parser.add_argument("--project", nargs="+", help="Jira project keys")
     parser.add_argument("--reporter", nargs="+", help="Jira reporter user IDs or names")

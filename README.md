@@ -31,7 +31,7 @@ The old export CLI options (`--year`, `--periods`, `--configure`, `--output-dir`
 
 ## Reporting periods
 
-Every query loads **daily / 1week / 2week / monthly / quarterly / yearly** results for the selected year (일간, 1주간, 2주간, 월간, 분기간, 연간). **quarterly** is one chart with four buckets, Q1-Q4 (Jan-Mar, Apr-Jun, Jul-Sep, Oct-Dec), and **daily** has one bucket per calendar day (365 or 366). All periods are cumulative from January 1. Use the period dropdown to switch the chart, Created/Resolved totals, date-range table, and executed JQL. **Save CSV** writes the loaded results for every period into `outputs/`.
+Every query loads **daily / 1week / monthly / quarterly / yearly** results for the selected year (일간, 주간, 월간, 분기간, 연간). **quarterly** is one chart with four buckets, Q1-Q4 (Jan-Mar, Apr-Jun, Jul-Sep, Oct-Dec), and **daily** has one bucket per calendar day (365 or 366). All periods are cumulative from January 1. Use the period dropdown to switch the chart, Created/Resolved totals, date-range table, and executed JQL. **Save CSV** writes the loaded results for every period into `outputs/`.
 
 Graphs use **carried-forward cumulative totals**: each point adds that period's Created/Resolved counts to the preceding periods within the selected calendar year. For example, period counts `2, 0, 5` produce chart values `2, 2, 7`. Created and Resolved accumulate independently for each project, beginning at zero on January 1. Switching periods or redrawing does not accumulate the same counts again. Saved HTML and JPG use these cumulative curves. Tables, CSV, and the executed JQL retain the original per-period counts; the final cumulative point equals the year's total.
 
@@ -39,14 +39,15 @@ The language selector switches between **한국어 (Korean) / 영어 (English)**
 
 **Export JPG** saves the selected period's title, filters, combined totals, and every displayed project chart in one image. It uses the current language and theme, with a width of 1800 pixels and a height that grows with the project count. Image generation happens locally in the browser. Controls are temporarily disabled while exporting and restored even if export fails. Period counts are also available in CSV; date-range tables and full JQL remain on the page. The JPG contains the chart summary.
 
-- 1week: consecutive 7-day buckets beginning January 1.
-- 2week: consecutive 14-day buckets beginning January 1.
+- daily: one bucket per calendar day (365 or 366).
+- 1week (주간): consecutive 7-day buckets beginning January 1.
 - monthly: the 12 calendar months.
+- quarterly (분기간): four buckets, Q1-Q4 (Jan-Mar, Apr-Jun, Jul-Sep, Oct-Dec).
 - yearly: the entire selected calendar year.
 
 The final bucket ends January 1 of the following year. These are calendar-year buckets, not rolling windows or ISO week numbers. Queries include the start date and exclude the end date; Jira interprets dates in the account timezone. Zero counts are included. Resolved issues can have been created before the selected year, so the displayed ratio is not a cohort resolution rate.
 
-For 2026 there are 53 + 27 + 12 + 1 buckets: **186 JQL queries per project**, plus pagination requests. Requests run sequentially and can take several minutes. Changing the period dropdown uses loaded data without a network request. Changing the year, projects, or reporters automatically fetches new data. Valid initial defaults load after the project list is ready. Rapid changes are coalesced, requests are serialized, and outdated responses are discarded. Only one report query runs at a time. A failed query hides prior results rather than showing them under the wrong filters.
+The dashboard fetches each report with one paged Jira search and counts every period locally. The offline CLI queries per bucket: for 2026 its default periods (1week, monthly, yearly) have 53 + 12 + 1 buckets, **132 JQL queries per project**, plus pagination requests; `--periods quarterly daily` adds 8 and 730 queries. Requests run sequentially and can take several minutes. Changing the period dropdown uses loaded data without a network request. Changing the year, projects, or reporters automatically fetches new data. Valid initial defaults load after the project list is ready. Rapid changes are coalesced, requests are serialized, and outdated responses are discarded. Only one report query runs at a time. A failed query hides prior results rather than showing them under the wrong filters.
 
 ## Authentication and transport
 

@@ -197,7 +197,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
     def save_output(self):
         name = self.headers.get('X-Output-Name', '')
         content_type = self.headers.get('Content-Type', '')
-        is_jpg = bool(re.fullmatch(r'jira_\d{8}-\d{6}_\d{4}_(?:daily|1week|2week|monthly|yearly|quarterly)_(?:ko|en)_(?:light|dark)\.jpg', name))
+        is_jpg = bool(re.fullmatch(r'jira_\d{8}-\d{6}_\d{4}_(?:daily|1week|monthly|yearly|quarterly)_(?:ko|en)_(?:light|dark)\.jpg', name))
         is_csv = bool(re.fullmatch(r'jira_\d{8}-\d{6}_\d{4}_issues\.csv', name))
         if not ((is_jpg and content_type == 'image/jpeg') or
                 (is_csv and content_type == 'text/csv;charset=utf-8')):

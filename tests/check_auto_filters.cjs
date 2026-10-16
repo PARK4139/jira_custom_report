@@ -34,7 +34,7 @@ if(url==='/api/inputs'){inputSyncs.push(JSON.parse(options.body).values);return 
 if(url==='/api/reporters'){reporterSearches.push(JSON.parse(options.body).query);return {ok:true,async json(){return {reporters:[{name:'parkjh',displayName:'박정훈'},{name:'kimsh',displayName:'김선희'}]}}}}
 if(url==='/api/projects')return {ok:true,async json(){return {projects:[{key:'DEMO',name:'Quality team'},{key:'OTHER',name:'Platform team'}]}}};
 const payload=JSON.parse(options.body);requests.push(payload);
-const datasets={};for(const period of ['1week','2week','monthly','yearly'])datasets[period]=[{label:String(payload.year),start:payload.year+'-01-01',end:(payload.year+1)+'-01-01',created:payload.year-2020,resolved:1,queries:{created:'created query',resolved:'resolved query'}}];
+const datasets={};for(const period of ['1week','monthly','yearly'])datasets[period]=[{label:String(payload.year),start:payload.year+'-01-01',end:(payload.year+1)+'-01-01',created:payload.year-2020,resolved:1,queries:{created:'created query',resolved:'resolved query'}}];
 const projectReports=payload.projects.map((key,i)=>({key,name:key==='DEMO'?'Quality team':'Platform team',datasets:Object.fromEntries(Object.entries(datasets).map(([period,rows])=>[period,rows.map(row=>({...row,created:row.created+i+1}))]))}));
 const response={ok:!failure,async json(){return failure?{error:'Synthetic failure'}:{datasets,projectReports,queryCount:186*payload.projects.length}}};
 if(holdNext){holdNext=false;return new Promise(resolve=>{finishHeld=()=>resolve(response)})}return response;

@@ -61,7 +61,7 @@ async function main() {
     const setSelect = (id, value) => evaluate(`(()=>{const node=document.getElementById('${id}');node.value='${value}';node.dispatchEvent(new Event('change',{bubbles:true}))})()`);
     await setSelect('locale', 'ko');
     assert.deepEqual(await evaluate("[...document.getElementById('period-select').options].map(option=>option.textContent)"),
-      ['일간', '1주간', '2주간', '월간', '분기간', '연간'], 'period options, in Korean');
+      ['일간', '주간', '월간', '분기간', '연간'], 'period options, in Korean');
     await setSelect('period-select', 'quarterly');
     await waitFor(() => evaluate("document.getElementById('report-title').textContent.includes('quarterly')"), 'quarterly title');
     assert.equal(await evaluate("document.querySelectorAll('#project-graphs .project-report table tr').length"), 5, 'four quarters plus the header');

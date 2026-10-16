@@ -10,7 +10,9 @@ const savedYear=Number(preference('year',''));
 yearSelect.value=String(Number.isInteger(savedYear)&&savedYear>=1970&&savedYear<=config.currentYear+1?savedYear:config.currentYear);
 byId('report-panel').hidden=true;byId('period-tabs').hidden=true;
 const savedPeriod=preference('period','monthly');
-let activePeriod=['daily','1week','2week','monthly','yearly','quarterly'].includes(savedPeriod)?savedPeriod:'monthly',hasResults=false;
+let activePeriod=['daily','1week','monthly','yearly','quarterly'].includes(savedPeriod)?savedPeriod:'monthly',hasResults=false;
+// A saved period that no longer exists (for example 2week) falls back to monthly and is overwritten.
+try{if(savedPeriod!==activePeriod&&localStorage.getItem('jira-period'))localStorage.setItem('jira-period',activePeriod)}catch{}
 let projectCatalog=[];
 let loadedProjectReports=[];
 const projectsInput=byId('projects'),reportersInput=byId('reporters');

@@ -46,7 +46,7 @@ if(url==='/api/reporters')return {ok:true,async json(){return {reporters:[{name:
 if(url==='/api/projects')return {ok:true,async json(){return {projects:[{key:'DEMO',name:'Quality team'},{key:'OTHER',name:'Other team'}]}}};
 const payload=JSON.parse(options.body);requests.push(payload);
 if(failure)return {ok:false,async json(){return {error:'Synthetic query failure'}}};
-const datasets={};for(const period of ['1week','2week','monthly','yearly'])datasets[period]=[payload.year-2020,0,2].map((created,index)=>({label:String(index+1),start:payload.year+'-0'+(index+1)+'-01',end:payload.year+'-0'+(index+2)+'-01',created,resolved:[1,0,3][index],queries:{created:'created query '+payload.year,resolved:'resolved query '+payload.year}}));
+const datasets={};for(const period of ['1week','monthly','yearly'])datasets[period]=[payload.year-2020,0,2].map((created,index)=>({label:String(index+1),start:payload.year+'-0'+(index+1)+'-01',end:payload.year+'-0'+(index+2)+'-01',created,resolved:[1,0,3][index],queries:{created:'created query '+payload.year,resolved:'resolved query '+payload.year}}));
 datasets.quarterly=[3,2,0,5].map((created,index)=>({label:'Q'+(index+1),start:payload.year+'-'+['01','04','07','10'][index]+'-01',end:(index<3?payload.year+'-'+['04','07','10'][index]:(payload.year+1)+'-01')+'-01',created,resolved:[1,2,1,2][index],queries:{created:'q',resolved:'q'}}));
 datasets.daily=[1,0,2].map((created,index)=>({label:'01/0'+(index+1),start:payload.year+'-01-0'+(index+1),end:payload.year+'-01-0'+(index+2),created,resolved:[0,1,1][index],queries:{created:'d',resolved:'d'}}));
 const projectReports=payload.projects.map((key,i)=>({key,name:key==='DEMO'?'Quality team':'Other team',datasets:Object.fromEntries(Object.entries(datasets).map(([period,rows])=>[period,rows.map(row=>({...row,created:row.created+i+1}))]))}));
@@ -73,7 +73,7 @@ assert.equal(elements.get('project-graphs').children[1].children[0].textContent,
 assert.equal(elements.get('summary').children.length,0,'no combined totals; each project graph carries its own ratio');
 assert.ok(form.elements.every(input=>input.disabled!==true));
 }
-const tabs=elements.get('period-tabs').children;tabs[3].click();
+const tabs=elements.get('period-tabs').children;tabs[2].click();
 assert.match(elements.get('period-heading').textContent,/Yearly/);
 assert.notEqual(elements.get('project-graphs').children[0].children[1].children[0].textContent,elements.get('project-graphs').children[1].children[1].children[0].textContent);
 const rawProjectData=vm.runInContext('JSON.stringify(loadedProjectReports)',context);
@@ -84,7 +84,7 @@ assert.deepEqual(points.slice(3).map(point=>point.children[0].dataset.cumulative
 assert.equal(points[4].attributes.cy,points[3].attributes.cy,'zero periods carry the previous resolved count');
 assert.ok(Math.abs(points[2].attributes.cy-(320-290*10/12))<1e-8,'chart scale uses cumulative maximum');
 const ratios=project=>project.querySelectorAll('text').filter(node=>node.dataset.ratio);
-assert.equal(ratios(firstProject).length,1,'ratio is drawn inside each graph');assert.equal(ratios(firstProject)[0].dataset.ratio,'40.0%');assert.equal(ratios(firstProject)[0].textContent,'Resolved / Created: 40.0%');
+assert.equal(ratios(firstProject).length,1,'ratio is drawn inside each graph');assert.equal(ratios(firstProject)[0].dataset.ratio,'40.0%');assert.equal(ratios(firstProject)[0].textContent,'Resolved-to-Created Ratio: 40.0%');
 assert.equal(firstProject.querySelector('table').children[2].children[1].textContent,'1','project table remains per-period');
 // Quarterly (four quarter buckets) and daily are cumulative from January 1 like every other period.
 elements.get('period-select').value='quarterly';for(const handler of elements.get('period-select').handlers.change)handler();
@@ -99,8 +99,8 @@ elements.get('period-select').value='daily';for(const handler of elements.get('p
 const dailyProject=elements.get('project-graphs').children[0];
 assert.deepEqual(dailyProject.querySelectorAll('circle').slice(0,3).map(point=>point.children[0].dataset.cumulativeValue),['2','3','6'],'daily created accumulates day by day');
 assert.match(elements.get('report-title').textContent,/daily ISSUE/);
-const koPeriods=JSON.parse(vm.runInContext("JSON.stringify(['daily','1week','2week','monthly','quarterly','yearly'].map(period=>messages.ko.periods[period]))",context));
-assert.deepEqual(koPeriods,['일간','1주간','2주간','월간','분기간','연간'],'Korean period names');
+const koPeriods=JSON.parse(vm.runInContext("JSON.stringify(['daily','1week','monthly','quarterly','yearly'].map(period=>messages.ko.periods[period]))",context));
+assert.deepEqual(koPeriods,['일간','주간','월간','분기간','연간'],'Korean period names');
 assert.deepEqual(JSON.parse(vm.runInContext("JSON.stringify(Object.keys(messages.ko.periods))",context)).filter(key=>/^q\d$/.test(key)),[],'the separate 1-4 quarter options are gone');
 elements.get('period-select').value='yearly';for(const handler of elements.get('period-select').handlers.change)handler();
 const beforePreferences=requests.length;

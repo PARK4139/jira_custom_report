@@ -27,8 +27,8 @@ assert.deepEqual(sample.map(row=>row.resolved),[0,3,3]);
 assert.equal(vm.runInContext('cumulativeRows([{created:1,resolved:0}])[0].created',context),1,'new series starts fresh');
 const originalData=vm.runInContext('JSON.stringify(datasets)',context);
 const tabs = elements.get('period-tabs').children;
-assert.equal(tabs.length, 4);
-const expected = { '1week': 53, '2week': 27, monthly: 12, yearly: 1 };
+assert.equal(tabs.length, 3);
+const expected = { '1week': 53, monthly: 12, yearly: 1 };
 for (const tab of tabs) {
   tab.click();
   assert.equal(tab.attributes['aria-selected'], 'true');
@@ -50,4 +50,4 @@ for (const tab of tabs) {
 tabs[0].handlers.keydown({key: 'End', preventDefault() {}});
 assert.equal(tabs.at(-1).attributes['aria-selected'], 'true');
 assert.equal(tabs.at(-1).focused, true);
-console.log('Report tabs: four views, row counts, charts, ARIA selection, and keyboard navigation passed.');
+console.log('Report tabs: three views, row counts, charts, ARIA selection, and keyboard navigation passed.');

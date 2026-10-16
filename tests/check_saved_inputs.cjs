@@ -38,7 +38,7 @@ async function launch(pagePath, initialStore) {
       if (url === '/api/reporters') return {ok: true, async json() { return {reporters: [{name: 'parkjh', displayName: '박정훈'}, {name: 'kimsh', displayName: '김선희'}]}; }};
       if (url === '/api/projects') return {ok: true, async json() { return {projects: [{key: 'DEMO', name: 'Quality team'}, {key: 'OTHER', name: 'Platform team'}]}; }};
       const payload = JSON.parse(options.body); requests.push(payload);
-      const datasets = {}; for (const period of ['1week', '2week', 'monthly', 'yearly']) datasets[period] = [{label: '1', start: payload.year + '-01-01', end: (payload.year + 1) + '-01-01', created: 1, resolved: 1, queries: {created: 'c', resolved: 'r'}}];
+      const datasets = {}; for (const period of ['1week', 'monthly', 'yearly']) datasets[period] = [{label: '1', start: payload.year + '-01-01', end: (payload.year + 1) + '-01-01', created: 1, resolved: 1, queries: {created: 'c', resolved: 'r'}}];
       const projectReports = payload.projects.map(key => ({key, name: key, datasets}));
       return {ok: true, async json() { return {datasets, projectReports, queryCount: 1}; }};
     }});

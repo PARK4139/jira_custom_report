@@ -59,7 +59,11 @@ def load_inputs() -> dict:
         values = json.loads(F_INPUTS.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
-    return values if valid_inputs(values) else {}
+    if not isinstance(values, dict):
+        return {}
+    # Keep every value that is still valid: a saved period that no longer exists must not discard the other inputs.
+    return {key: value for key, value in values.items() if key in VALIDATORS and isinstance(value, str)
+            and len(value) <= MAX_VALUE and VALIDATORS[key](value)}
 
 
 def save_inputs(values: dict) -> None:

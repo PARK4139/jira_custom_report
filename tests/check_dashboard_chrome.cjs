@@ -52,7 +52,7 @@ async function main(){
       change('locale','ko');setTheme('dark');change('year','2026');
       await until(()=>hasResults);
       check(byId('report-title').textContent.includes('비율'),'Korean title');
-      for(const [period,count]of Object.entries({'1week':53,'2week':27,monthly:12,yearly:1})){
+      for(const [period,count]of Object.entries({'1week':53,monthly:12,yearly:1})){
         change('period-select',period);check(byId('project-graphs').querySelectorAll('table tr').length===count+1,'period rows '+period);
       }
       change('period-select','monthly');

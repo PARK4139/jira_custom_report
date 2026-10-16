@@ -37,19 +37,19 @@ class QuarterlyAndDailyRangeTests(unittest.TestCase):
         self.assertIn('02/29', [row['label'] for row in period_ranges(2024, 'daily')])
 
     def test_removed_or_unknown_periods_are_rejected(self):
-        for period in ('q1', 'q2', 'q3', 'q4', 'q0', 'Quarterly', 'hourly', ''):
+        for period in ('2week', 'q1', 'q2', 'q3', 'q4', 'q0', 'Quarterly', 'hourly', ''):
             with self.subTest(period=period), self.assertRaises(ValueError):
                 period_ranges(2026, period)
 
     def test_cli_default_stays_fast_and_can_opt_in_to_quarterly_and_daily(self):
-        self.assertEqual(BASE_PERIODS, ('1week', '2week', 'monthly', 'yearly'))
+        self.assertEqual(BASE_PERIODS, ('1week', 'monthly', 'yearly'))
         self.assertEqual(PERIODS, BASE_PERIODS + ('quarterly', 'daily'))
 
 
 class PeriodReportTests(unittest.TestCase):
     def test_calendar_coverage_without_gaps_or_overlaps_including_leap_year(self):
         for year in (2024, 2026):
-            for period, expected in zip(PERIODS, (53, 27, 12, 1)):
+            for period, expected in zip(PERIODS, (53, 12, 1)):
                 with self.subTest(year=year, period=period):
                     rows = period_ranges(year, period)
                     self.assertEqual(len(rows), expected)
@@ -57,7 +57,6 @@ class PeriodReportTests(unittest.TestCase):
                     self.assertEqual(rows[-1]["end"], f"{year+1}-01-01")
                     self.assertTrue(all(a["end"] == b["start"] for a, b in zip(rows, rows[1:])))
         self.assertEqual(period_ranges(2024, "monthly")[1]["end"], "2024-03-01")
-        self.assertEqual(period_ranges(2026, "2week")[0]["end"], "2026-01-15")
 
     def test_default_cli_queries_all_four_periods_and_embeds_real_counts_and_jql(self):
         credentials = Credentials("https://jira.internal:8443/jira", "tester", "synthetic-private-password")
@@ -78,7 +77,7 @@ class PeriodReportTests(unittest.TestCase):
                 patch.object(jira_audit, "F_RUNTIME_LOG", Path(directory) / "runtime.jsonl"), \
                 contextlib.redirect_stdout(io.StringIO()):
             report.export_main()
-            self.assertEqual(len(queries), 186)
+            self.assertEqual(len(queries), 132)
             self.assertIn('AND created >= "2026-01-01" AND created < "2026-01-08"', queries[0])
             self.assertTrue(any('AND resolved >= "2026-01-01" AND resolved < "2027-01-01"' in q for q in queries))
             html = (Path(directory) / "DEMO_2026_monthly_issues.html").read_text(encoding="utf-8")
@@ -89,7 +88,7 @@ class PeriodReportTests(unittest.TestCase):
                 self.assertTrue(all((r["created"], r["resolved"]) == (2, 1) for r in rows))
                 self.assertTrue(all(r["queries"]["created"] in queries for r in rows))
             self.assertNotIn("</script><script>alert(1)</script>", html)
-            self.assertEqual(len(list(Path(directory).glob("*.csv"))), 4)
+            self.assertEqual(len(list(Path(directory).glob("*.csv"))), 3)
             self.assertNotIn(credentials.token, html)
             self.assertNotIn(credentials.token, (Path(directory) / "runtime.jsonl").read_text())
 

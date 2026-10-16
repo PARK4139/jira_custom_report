@@ -2,7 +2,7 @@
 from datetime import date, timedelta
 import json
 
-BASE_PERIODS = ("1week", "2week", "monthly", "yearly")
+BASE_PERIODS = ("1week", "monthly", "yearly")
 PERIODS = BASE_PERIODS + ("quarterly", "daily")
 
 
@@ -24,7 +24,7 @@ def period_ranges(year: int, period: str) -> list[dict]:
         elif period == "yearly":
             stop, label = end, str(year)
         else:
-            stop = min(start + timedelta(days=7 if period == "1week" else 14), end)
+            stop = min(start + timedelta(days=7), end)
             label = f"{start:%m/%d}"
         ranges.append({"label": label, "start": str(start), "end": str(stop)})
         start = stop

@@ -23,7 +23,7 @@ async function main() {
     const selectedYear = await page.locator('#year').inputValue();
     assert.equal(requests.length, 1);
     assert.equal(await page.locator('#period-tabs').isVisible(), false);
-    for (const [period,count] of Object.entries({'1week':53,'2week':27,monthly:12,yearly:1})) {
+    for (const [period,count] of Object.entries({'1week':53,monthly:12,yearly:1})) {
       await page.locator('#period-select').selectOption(period);
       assert.equal(await page.locator('#period-rows tr').count(), count);
     }
