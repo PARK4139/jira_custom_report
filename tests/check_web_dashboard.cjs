@@ -65,7 +65,7 @@ elements.get('year').value=String(year);
 await vm.runInContext('loadReport()',context);
 assert.equal(requests.at(-1).year,year);
 assert.deepEqual(requests.at(-1).projects,['DEMO','OTHER']);
-assert.equal(elements.get('report-title').textContent,'ISSUE STATISTICS WITH JIRA API','the page title is fixed text');
+assert.equal(elements.get('report-title').textContent,'ISSUE MEATER','the page title is fixed text');
 assert.ok(elements.get('period-heading').textContent.length>0);
 assert.equal(elements.get('report-panel').hidden,false);
 assert.equal(elements.get('project-graphs').children.length,2);

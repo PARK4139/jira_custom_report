@@ -39,7 +39,7 @@ const endCardHtml = `<!doctype html><meta charset="utf-8"><style>
   h1{margin:0;font-size:58px;letter-spacing:.02em}.sub{font-size:30px;color:#cfe0ff}
   code{font-family:"Cascadia Mono",Consolas,monospace;background:rgba(255,255,255,.12);padding:10px 22px;border-radius:10px;font-size:28px}
   .row{display:flex;gap:26px;align-items:center;font-size:26px;color:#cfe0ff}</style>
-  <h1>ISSUE STATISTICS WITH JIRA API</h1><div class="sub">온프레미스 Jira · 생성 / 해결 누적 추이</div>
+  <h1>ISSUE MEATER</h1><div class="sub">온프레미스 Jira · 생성 / 해결 누적 추이</div>
   <div class="row"><code>run.cmd --url {Jira-server-url} --id {Jira-user-id}</code></div>
   <div class="row"><span>Jira 없이 체험</span><code>demo.cmd</code></div>`;
 
