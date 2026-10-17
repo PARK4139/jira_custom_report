@@ -197,6 +197,51 @@ class FastAggregationTests(unittest.TestCase):
                          'project = "DEMO" AND reporter IN ("sample") AND created >= "2026-01-01" AND created < "2026-02-01"')
         self.assertEqual(set(row), {'label', 'start', 'end', 'created', 'resolved', 'queries'})
 
+    def test_jira_73_falls_back_to_issue_changelog_expansion(self):
+        issue = {'id': '42', 'fields': {'project': {'key': 'DEMO'},
+                                        'created': '2026-01-01T00:00:00.000+0900',
+                                        'resolution': {'name': 'Fixed'}}}
+        calls = []
+
+        def jira(request, event, expected_type=dict):
+            calls.append((request.full_url, event))
+            if request.full_url.endswith('/rest/api/2/search'):
+                return {'startAt': 0, 'maxResults': 1000, 'total': 1, 'issues': [issue]}
+            if '/changelog?' in request.full_url:
+                raise RuntimeError('Jira HTTP 404: Request rejected; check site and request settings. Redirects are disabled.')
+            self.assertIn('/rest/api/2/issue/42?', request.full_url)
+            self.assertIn('expand=changelog', request.full_url)
+            return {'changelog': {'total': 1, 'histories': [
+                {'created': '2026-02-01T00:00:00.000+0900', 'items': [
+                    {'field': 'resolution', 'from': None, 'fromString': None,
+                     'to': '1', 'toString': 'Fixed'}]}]}}
+
+        with patch.object(search, 'request_json', side_effect=jira):
+            grouped, request_count = search.count_unresolved_at_period_ends(
+                ['DEMO'], 2026, ['sample'], self.credentials, 'monthly')
+        self.assertEqual(grouped['DEMO'][0]['unresolved'], 1)
+        self.assertEqual(request_count, 3)
+        self.assertEqual([event for _, event in calls],
+                         ['issue_search', 'issue_changelog', 'issue_changelog_expand'])
+
+    def test_incomplete_expanded_changelog_fails_without_partial_counts(self):
+        issue = {'id': '42', 'fields': {'project': {'key': 'DEMO'},
+                                        'created': '2026-01-01T00:00:00.000+0900',
+                                        'resolution': {'name': 'Fixed'}}}
+
+        def jira(request, event, expected_type=dict):
+            if request.full_url.endswith('/rest/api/2/search'):
+                return {'startAt': 0, 'maxResults': 1000, 'total': 1, 'issues': [issue]}
+            if '/changelog?' in request.full_url:
+                raise RuntimeError('Jira HTTP 404: Request rejected; check site and request settings. Redirects are disabled.')
+            return {'changelog': {'total': 2, 'histories': [
+                {'created': '2026-02-01T00:00:00.000+0900', 'items': []}]}}
+
+        with patch.object(search, 'request_json', side_effect=jira), self.assertRaisesRegex(
+                RuntimeError, 'incomplete expanded changelog'):
+            search.count_unresolved_at_period_ends(
+                ['DEMO'], 2026, ['sample'], self.credentials, 'yearly')
+
 
 if __name__ == '__main__':
     unittest.main()

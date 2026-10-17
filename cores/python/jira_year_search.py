@@ -127,16 +127,38 @@ def count_unresolved_at_period_ends(projects: list[str], year: int, reporters: l
         raise RuntimeError("Jira results changed during the history query. Retry the report.")
     base = validate_url(url=credentials.url, allow_insecure_http=credentials.allow_insecure_http)
     auth = base64.b64encode(f"{credentials.email}:{credentials.token}".encode()).decode()
+    def history_page(identity, start_at, count):
+        endpoint = f"{base}/rest/api/2/issue/{identity}/changelog?startAt={start_at}&maxResults={count}"
+        request = Request(endpoint, headers={"Authorization": f"Basic {auth}", "Accept": "application/json"})
+        try:
+            return request_json(request=request, event="issue_changelog"), 1
+        except RuntimeError as exc:
+            if "Jira HTTP 404:" not in str(exc):
+                raise
+        # Jira Server 7.3 has changelog expansion on GET issue but does not
+        # expose the newer standalone issue/{id}/changelog endpoint.
+        endpoint = f"{base}/rest/api/2/issue/{identity}?fields=project,created,resolution&expand=changelog"
+        request = Request(endpoint, headers={"Authorization": f"Basic {auth}", "Accept": "application/json"})
+        issue_detail = request_json(request=request, event="issue_changelog_expand")
+        changelog = issue_detail.get("changelog")
+        if not isinstance(changelog, dict):
+            raise RuntimeError("Jira issue response has no expanded changelog.")
+        histories = changelog.get("histories")
+        total_changes = changelog.get("total")
+        if not isinstance(histories, list) or type(total_changes) is not int:
+            raise RuntimeError("Jira expanded changelog response has an invalid shape.")
+        if start_at + len(histories) < total_changes:
+            raise RuntimeError("Jira Server returned an incomplete expanded changelog; update Jira or reduce the issue history.")
+        return {"histories": histories, "total": total_changes}, 2
+
     def histories(issue):
         identity = issue.get("id")
         if not isinstance(identity, str) or not identity.isdigit():
             raise RuntimeError("Jira returned an invalid issue identity for history lookup.")
         values, start_at, count, requests = [], 0, 100, 0
         while True:
-            endpoint = f"{base}/rest/api/2/issue/{identity}/changelog?startAt={start_at}&maxResults={count}"
-            request = Request(endpoint, headers={"Authorization": f"Basic {auth}", "Accept": "application/json"})
-            result = request_json(request=request, event="issue_changelog")
-            requests += 1
+            result, sent = history_page(identity, start_at, count)
+            requests += sent
             batch = result.get("values", result.get("histories"))
             total_changes = result.get("total")
             if not isinstance(batch, list) or type(total_changes) is not int:

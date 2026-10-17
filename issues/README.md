@@ -4,6 +4,7 @@ Keep issue descriptions, user stories, and acceptance criteria in this directory
 
 - [Project layout and output management](project-layout-and-outputs.md)
 - [Fast single-query aggregation (78f878f0)](closed/report_query/fast-aggregation/78f878f0.md)
+- [Jira Server 7.3 changelog compatibility (e3149815)](working/report_query/jira73-changelog/e3149815.md)
 - [README showreel GIF (9a74c2e1)](closed/demo/showreel/9a74c2e1.md)
 
 - [Multiple project graphs (#2)](https://github.com/PARK4139/jira_custom_report/issues/2)
