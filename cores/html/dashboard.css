@@ -79,6 +79,11 @@ body{max-width:none;margin:0;padding:0;background:var(--page);color:var(--ink);f
 @keyframes dot-in{from{opacity:0;r:0}to{opacity:1}}
 @media(prefers-reduced-motion:reduce){.project-report svg path.series-line,.project-report svg .series-dot{animation:none;transition:none}}
 .project-report table{margin-top:12px}
+.chart-guides{margin:24px 0;padding:18px 20px;background:var(--surface);border:1px solid var(--line);border-radius:3px}
+.chart-guides>h3{margin:0 0 14px;font-size:16px;font-weight:600}
+.chart-guide+ .chart-guide{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+.chart-guide h4{margin:0 0 6px;font-size:14px;font-weight:600}
+.chart-guide ul{margin:0;padding-left:22px;color:var(--muted);line-height:1.65}
 .chart-wrap{background:var(--surface);border:1px solid var(--line);border-radius:3px}
 .red{color:var(--created)}.green{color:var(--resolved)}.blue{color:var(--focus)}
 td,th{border-color:var(--grid)}th{color:var(--muted)}summary{color:var(--accent);cursor:pointer}

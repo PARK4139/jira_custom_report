@@ -48,4 +48,15 @@ const details=document.createElement('details'),caption=document.createElement('
 const table=document.createElement('table'),head=document.createElement('tr');for(const text of ['Period [start, end)','Created','Resolved',...(unresolvedMode?['Unresolved']:[]),'JQL']){const th=document.createElement('th');th.textContent=text;head.append(th)}table.append(head);
 for(const row of rows){const tr=document.createElement('tr');for(const value of [row.start+' / '+row.end,row.created,row.resolved,...(unresolvedMode?[row.unresolved??'—']:[])]){const td=document.createElement('td');td.textContent=value;tr.append(td)}const td=document.createElement('td');for(const field of ['created','resolved',...(row.queries.unresolved?['unresolved']:[])]){const pre=document.createElement('pre');pre.textContent=row.queries[field];td.append(pre)}tr.append(td);table.append(tr)}details.append(table);section.append(details);container.append(section);
 }
+const guides=document.createElement('section');guides.className='chart-guides';guides.setAttribute('aria-labelledby','chart-guides-heading');
+const guideHeading=document.createElement('h3');guideHeading.id='chart-guides-heading';guideHeading.dataset.text='chartGuideHeading';guideHeading.textContent=t('chartGuideHeading');guides.append(guideHeading);
+for(const project of loadedProjectReports){
+const guide=document.createElement('section');guide.className='chart-guide';
+const heading=document.createElement('h4');heading.textContent=project.name+' ('+project.key+')';guide.append(heading);
+const points=document.createElement('ul');
+const keys=unresolvedMode?['guideUnresolved1','guideUnresolved2','guideUnresolved3']:periodic?['guidePeriodic1','guidePeriodic2','guidePeriodic3']:['guideCumulative1','guideCumulative2','guideCumulative3'];
+for(const key of keys){const point=document.createElement('li');point.dataset.text=key;point.textContent=t(key);points.append(point)}
+guide.append(points);guides.append(guide);
+}
+container.append(guides);
 };

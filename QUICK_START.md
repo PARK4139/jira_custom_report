@@ -2,7 +2,7 @@
 
 온프레미스 Jira의 이슈 **생성 / 해결 추이**를 웹 대시보드로 보는 도구입니다. 명령 한 줄로 실행하면 브라우저에 대시보드가 열립니다.
 
-- 산출물(저장소): <https://github.com/PARK4139/Jira_custom_report>
+- 산출물(저장소): <https://github.com/PARK4139/jira_issue_meter>
 
 ## 시험환경 (Test Environment)
 
@@ -14,8 +14,8 @@
 ## 1분 시작 (QUICK START)
 
 ```bat
-git clone https://github.com/PARK4139/Jira_custom_report
-cd Jira_custom_report
+git clone https://github.com/PARK4139/jira_issue_meter
+cd jira_issue_meter
 run.cmd --url {Jira-server-url} --id {Jira-user-id}
 ```
 
